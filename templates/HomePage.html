@@ -1,0 +1,106 @@
+{% extends "Layout.html" %}
+
+{% block title %}Shop{% endblock %}
+{% block extras%}{% endblock %}
+
+{% block body %}{% endblock %}
+
+{% block header%}{% endblock %}
+
+{% block navbar%} 
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <nav class="navbar bg-body-tertiary">
+                <div class="col-md-auto">
+                    <a class="navbar-brand" href="/HomePage">The Tech Shop</a>
+                </div>
+                <div class="col-md-6 justify-content-start mx-auto position-relative">
+                    <form class="d-flex" action="/HomePage/Search"> 
+                        <label for="searchInput" class="visually-hidden">Search</label>
+                        <input class="form-control me-2" id="searchInput" name="search" type="search" placeholder="Search" aria-label="Search" required>
+                        <button class="btn btn-outline-dark" type="submit"><i class="bi bi-search"></i></button>
+                    </form>
+                    <ul id="searchResults" class="list-group position-absolute w-100 mt-1" style="z-index: 1000;"></ul>
+                </div>
+                <div class="col-md-auto">
+                    <a class="navbar-brand" href="#"></a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
+                        <div class="offcanvas-header">
+                            <h5 class="offcanvas-title" id="offcanvasNavbarLabel">The Tech Shop</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                        </div>
+                        <div class="offcanvas-body">
+                            <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                                <li class="nav-item">
+                                    <a class="nav-link active" aria-current="page" href="/HomePage">
+                                        <img src="static/images/home.png" alt="home" class="rounded-circle" style="width: 32px; height: 32px;">
+                                        Home
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="/HomePage/Cart">
+                                        <img src="static/images/shopping_cart.png" alt="Cart" class="rounded-circle" style="width: 32px; height: 32px;">
+                                        Cart
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" href="/HomePage/Profile">
+                                        <img src="static/images/account.png" alt="Profile" class="rounded-circle" style="width: 32px; height: 32px;">
+                                        Account
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <form action="/LogOut" method="POST">
+                                        <button type="submit" class="btn btn-outline-danger">Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                            
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block main%}
+    <h1>Shop</h1>
+    
+{% endblock %}
+
+{% block scripts%} 
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        let input = document.getElementById("searchInput");
+        input.addEventListener("input", async function() {
+            if (input.value.trim().length > 0) {
+                let response = await fetch("/HomePage/Search?search=" + encodeURIComponent(input.value));
+                let data = await response.json();
+                let ul = document.getElementById("searchResults");
+                ul.innerHTML = "";
+                data.forEach(item => {
+                    let li = document.createElement("li");
+                    li.className = "list-group-item";
+                    li.textContent = item.username;
+                    li.addEventListener("click", function() {
+                        input.value = item.username;
+                        ul.innerHTML = "";
+                        ul.style.display = 'none';  
+                    });
+                    ul.appendChild(li);
+                });
+                ul.style.display = 'block';
+            } else {
+                document.getElementById("searchResults").innerHTML = "";
+                document.getElementById("searchResults").style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}

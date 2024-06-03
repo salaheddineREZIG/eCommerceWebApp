@@ -10,15 +10,28 @@ def validate(email):
         flash("Invalid email format", "error")
         return False
 
-def login_required(f):
+def login_required_user(f):
     """
     Decorator function to ensure that a user is logged in
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if not session.get("loggedIn"):
+        if not session.get("loggedIn") or session.get("admin"):
             flash("Please log in to access this page", "error")
-            return redirect(url_for("Login"))
+            return redirect(url_for("LogIn"))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def login_required_admin(f):
+    """
+    Decorator function to ensure that a user is logged in
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get("loggedIn") or not session.get("admin"):
+            flash("Please log in to access this page", "error")
+            return redirect(url_for("AdminLogIn"))
         return f(*args, **kwargs)
     return decorated_function
 

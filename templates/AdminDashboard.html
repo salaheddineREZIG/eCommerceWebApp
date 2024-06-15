@@ -1,2 +1,132 @@
-{%extends "Layout.html" %}
+{% extends "Layout.html" %}
 
+{% block title %} Admin Dashboard {% endblock %}
+
+{% block extras %}
+
+{% endblock %}
+
+{% block navbar %}
+<div class="container-fluid">
+  <div class="row">
+      <div class="col-md-12">
+          <nav class="navbar bg-body-tertiary">
+              <div class="col-md-auto">
+                  <a class="navbar-brand" href="/AdminPanel/Dashboard">The Tech Shop</a>
+              </div>
+              <div class="col-md-6 justify-content-start mx-auto position-relative">
+                  <form class="d-flex" action="/AdminPanel/Dashboard/Search"> 
+                      <select class="form-select" aria-label="Default select example" name="type" id="typeInput" style="width: auto;">
+                          <option disabled selected>type</option>
+                          <option value="users">Users</option>
+                          <option value="products">Products</option>
+                          <option value="orders">Orders</option>
+                          <option value="reviews">Reviews</option>
+                          <option value="sales">Sales</option>
+                          <option value="categories">Categories</option>
+                      </select>
+                      <label for="searchInput" class="visually-hidden">Search</label>
+                      <input class="form-control me-2" id="searchInput" name="search" type="search" placeholder="Search" aria-label="Search" required disabled>
+                      <button class="btn btn-outline-dark" type="submit" disabled id="searchButton"><i class="bi bi-search" ></i></button>
+                  </form>
+                  <ul id="searchResults" class="list-group position-absolute w-100 mt-1" style="z-index: 1000;"></ul>
+              </div>
+              <div class="col-md-auto">
+                  <a class="navbar-brand" href="#"></a>
+                  <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
+                      <span class="navbar-toggler-icon"></span>
+                  </button>
+                  <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
+                      <div class="offcanvas-header">
+                          <h5 class="offcanvas-title" id="offcanvasNavbarLabel">The Tech Shop</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                      </div>
+                      <div class="offcanvas-body">
+                          <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                              <li class="nav-item">
+                                  <a class="nav-link active" aria-current="page" href="/AdminPanel/Dashboard">
+                                      <img src="{{url_for('static', filename='images/home.png')}}" alt="home" class="rounded-circle" style="width: 32px; height: 32px;">
+                                      Home
+                                  </a>
+                              </li>
+                              <li class="nav-item">
+                                  <a class="nav-link" href="/AdminPanel/Products">
+                                      <img src="{{url_for('static', filename='images/shopping_cart.png')}}" alt="Cart" class="rounded-circle" style="width: 32px; height: 32px;">
+                                      Products
+                                  </a>
+                              </li>
+                              <li class="nav-item">
+                                  <a class="nav-link" href="/AdminPanel/Profile">
+                                      <img src="{{url_for('static', filename='images/account.png')}}" alt="Profile" class="rounded-circle" style="width: 32px; height: 32px;">
+                                      Account
+                                  </a>
+                              </li>
+                              <li class="nav-item">
+                                  <form action="/LogOut" method="POST">
+                                      <button type="submit" class="btn btn-outline-danger">Logout</button>
+                                  </form>
+                              </li>
+                          </ul>
+                          
+                      </div>
+                  </div>
+              </div>
+          </nav>
+      </div>
+  </div>
+</div>
+{% endblock %}
+{% block main %}
+
+<div class="container-fluid">
+
+  <div id="totalSales">
+    -
+  </div>
+  <div id="topSales">
+    -   
+  </div>
+  <div id="newOrders">
+    -
+  </div>
+
+  <div id="newReviews">
+    -
+  </div>
+  <div id="totalProducts">
+    -
+  </div>
+  <div id="totalCategories">
+    -
+  </div>
+  <div id="totalUsers">
+    -
+  </div>
+  <div id="totalOrders">
+    -
+  </div>
+  <div id="adminInfo">
+    -
+  </div>
+
+
+  <a href="/AdminPanel/Products">View All Products</a>
+  <a href="/AdminPanel/Categories">View All Categories</a>
+  <a href="/AdminPanel/Users">View All Users</a>
+  <a href="/AdminPanel/Orders">View All Orders</a>
+  <a href="/AdminPanel/Reviews">View All Reviews</a>
+  <a href="/AdminPanel/Sales">View Sales</a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+
+  fetchStats();
+
+  AdminSearchBar();
+</script>
+
+
+    
+{% endblock %}
+    

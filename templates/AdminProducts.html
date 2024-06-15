@@ -1,0 +1,196 @@
+{% extends 'AdminDashboard.html'%}
+
+{% block title %} Products {% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 text-start">
+            <h4 class="header-title">Products</h4>
+        </div>
+    </div>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th scope="col">Product Id</th>
+                            <th scope="col">Product Name</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Price</th>
+                            <th scope="col">Category</th>
+                            <th scope="col">Image</th>
+                            <th scope="col">Stock Quantity</th>
+                            <th scope="col">SKU</th>
+                            <th scope="col">Brand</th>
+                            <th scope="col">Weight</th>
+                            <th scope="col">Dimensions</th>
+                            <th scope="col">Color</th>
+                            <th scope="col">Size</th>
+                            <th scope="col">Material</th>
+                            <th scope="col">Features</th>
+                            <th scope="col">Tags</th>
+                            <th scope="col">Discount Price</th>
+                            <th scope="col">Availability Status</th>
+                            <th scope="col">Rating</th>
+                            <th scope="col">Date Added</th>
+                            <th scope="col">Date Modified</th>
+                            <th scope="col">Reviews</th>
+                            <th scope="col"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="productsTableBody">
+                        <!-- Data will be dynamically loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Product Button -->
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal" id="addProductButton">
+                Add Product
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Add Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form enctype="multipart/form-data" id="addProductForm">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Product Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Price</label>
+                        <input type="number" step="0.01" class="form-control" id="price" name="price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="category_id" class="form-label">Category</label>
+                        <select class="form-select" id="categoriesNames" name="category_id" required>
+                            <option selected disabled >Select a category</option>
+                            <!-- Options will be dynamically loaded -->
+                            <div class="categoryOptions"></div>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="image_file" class="form-label">Image File</label>
+                        <input type="file" class="form-control" id="image_file" name="image_file" >
+                    </div>
+                    <div class="mb-3">
+                        <label for="stock_quantity" class="form-label">Stock Quantity</label>
+                        <input type="number" class="form-control" id="stock_quantity" name="stock_quantity" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sku" class="form-label">SKU</label>
+                        <input type="text" class="form-control" id="sku" name="sku" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="brand" class="form-label">Brand</label>
+                        <input type="text" class="form-control" id="brand" name="brand">
+                    </div>
+                    <div class="mb-3">
+                        <label for="weight" class="form-label">Weight</label>
+                        <input type="number" step="0.01" class="form-control" id="weight" name="weight">
+                    </div>
+                    <div class="mb-3">
+                        <label for="dimensions" class="form-label">Dimensions</label>
+                        <input type="text" class="form-control" id="dimensions" name="dimensions">
+                    </div>
+                    <div class="mb-3">
+                        <label for="color" class="form-label">Color</label>
+                        <input type="text" class="form-control" id="color" name="color">
+                    </div>
+                    <div class="mb-3">
+                        <label for="size" class="form-label">Size</label>
+                        <input type="text" class="form-control" id="size" name="size">
+                    </div>
+                    <div class="mb-3">
+                        <label for="material" class="form-label">Material</label>
+                        <input type="text" class="form-control" id="material" name="material">
+                    </div>
+                    <div class="mb-3">
+                        <label for="features" class="form-label">Features</label>
+                        <textarea class="form-control" id="features" name="features"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tags" class="form-label">Tags</label>
+                        <input type="text" class="form-control" id="tags" name="tags">
+                    </div>
+                    <div class="mb-3">
+                        <label for="discount_price" class="form-label">Discount Price</label>
+                        <input type="number" step="0.01" class="form-control" id="discount_price" name="discount_price">
+                    </div>
+                    <div class="mb-3">
+                        <label for="availability_status" class="form-label">Availability Status</label>
+                        <select class="form-select" id="availability_status" name="availability_status" required>
+                            <option value="In Stock">In Stock</option>
+                            <option value="Out of Stock">Out of Stock</option>
+                            <option value="Preorder">Preorder</option>
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Add Product</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Do you really want to delete this Product?</h6>
+                <form id="deleteProductForm" enctype="multipart/form-data">
+                    <button type="submit" class="btn accordion btn-danger">Delete</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    AdminSearchBar();
+
+    
+    FetchProducts();
+
+    document.getElementById('addProductModal').addEventListener('shown.bs.modal', function () {
+        FetchSelectMenu();
+    });
+
+    AddProduct();
+
+    DeleteAndEditProduct();
+</script>
+{% endblock %}

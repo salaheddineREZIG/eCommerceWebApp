@@ -1,0 +1,44 @@
+{% extends 'AdminDashboard.html' %}
+
+{% block title %} Users {% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 text-start">
+            <h4 class="header-title">Users</h4>
+        </div>
+    </div>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th scope="col">User Id</th>
+                            <th scope="col">Username</th>
+                            <th scope="col">Phone Number</th>
+                            <th scope="col">Email</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock%}
+
+{% block scripts %}
+    <script>
+        AdminSearchBar();
+
+        FetchUsers();
+       
+       
+    </script>
+{% endblock %}

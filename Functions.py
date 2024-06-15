@@ -35,4 +35,3 @@ def login_required_admin(f):
         return f(*args, **kwargs)
     return decorated_function
 
-

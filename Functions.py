@@ -1,6 +1,37 @@
 from email_validator import validate_email, EmailNotValidError
 from flask import flash, redirect, url_for, session
 from functools import wraps
+from werkzeug.utils import secure_filename
+import os
+
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+
+def create_app():
+    app = Flask(__name__, static_folder='static')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///DataBase.db")
+    app.config['UPLOAD_FOLDER'] = 'static/uploads'
+    app.config["SESSION_PERMANENT"] = False
+    app.config["SESSION_TYPE"] = "filesystem"
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "salahisthegoat")
+    app.config['UPLOAD_FOLDER'] = 'static/uploads/'
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+    
+    db.init_app(app)
+    migrate = Migrate(app, db)
+    Session(app)
+    
+    with app.app_context():
+        db.create_all()
+    
+    return app
+
 
 def validate(email):
     try:

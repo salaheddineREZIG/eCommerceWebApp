@@ -1,0 +1,83 @@
+{% extends 'AdminDashboard.html'%}
+
+{% block title %} Orders {% endblock%}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 text-start">
+            <h4 class="header-title">Orders</h4>
+        </div>
+    </div>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th scope="col">Order ID</th>
+                            <th scope="col">User ID</th>
+                            <th scope="col">Order Date</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Total Amount</th>
+                            <th scope="col">Shipping Address</th>
+                            <th scope="col">Order Items</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <!-- Data will be dynamically loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Do you really want to delete this order?</h6>    
+                <div id="userInfo"></div>
+                <form id="deleteUserForm" enctype="multipart/form-data">
+                    <button type="submit" class="btn accordion btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="changeStatusModal" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Change Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Change Status if you complete this order</h6>    
+                <div id="userInfo"></div>
+                <form id="deleteUserForm" enctype="multipart/form-data">
+                    <select name="status" id="status">
+                        <option value="Pending">Pending</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                    </select>
+                    <button type="submit" class="btn accordion btn-primary">Change</button>
+                </form>
+            </div>
+        </div>
+
+{% endblock%}
+
+{% block scripts %}
+
+{% endblock %}

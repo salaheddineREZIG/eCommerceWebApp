@@ -19,8 +19,12 @@
                         <tr>
                             <th scope="col">User Id</th>
                             <th scope="col">Username</th>
-                            <th scope="col">Phone Number</th>
                             <th scope="col">Email</th>
+                            <th scope="col">Phone Number</th>
+                            <th scope="col">Profile Picture</th>
+                            <th scope="col">Date Created</th>
+                            <th scope="col">Date Updated</th>
+                            <th scope="col"></th>
                         </tr>
                     </thead>
                     <tbody id="usersTableBody">
@@ -31,13 +35,35 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Do you really want to delete this user?</h6>    
+                <div id="userInfo"></div>
+                <form id="deleteUserForm" enctype="multipart/form-data">
+                    <button type="submit" class="btn accordion btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock%}
 
 {% block scripts %}
     <script>
-        AdminSearchBar();
+        document.addEventListener("DOMContentLoaded",async function() {
+            AdminSearchBar();
 
-        FetchUsers();
+            FetchUsers();
+
+            DeleteUser();
+
+        });
        
        
     </script>

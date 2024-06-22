@@ -1,0 +1,102 @@
+{% extends "HomePage.html" %}
+
+{% block main %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>{{ product.name }}</h1>
+            <hr>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <img src="{{ product.image_file }}" class="img-fluid" alt="Product Image">
+                        </div>
+                        <div class="col-md-8">
+                            <h5>Product Details</h5>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item"><strong>Product ID:</strong> {{ product.id }}</li>
+                                <li class="list-group-item"><strong>Slug:</strong> {{ product.slug }}</li>
+                                <li class="list-group-item"><strong>Description:</strong> {{ product.description }}</li>
+                                <li class="list-group-item"><strong>Price:</strong> ${{ product.price }}</li>
+                                <li class="list-group-item"><strong>Category:</strong> {{ product.category_name }}</li>
+                                <li class="list-group-item"><strong>Stock Quantity:</strong> {{ product.stock_quantity }}</li>
+                                <li class="list-group-item"><strong>SKU:</strong> {{ product.sku }}</li>
+                                <li class="list-group-item"><strong>Brand:</strong> {{ product.brand }}</li>
+                                <li class="list-group-item"><strong>Weight:</strong> {{ product.weight }} kg</li>
+                                <li class="list-group-item"><strong>Dimensions:</strong> {{ product.dimensions }}</li>
+                                <li class="list-group-item"><strong>Color:</strong> {{ product.color }}</li>
+                                <li class="list-group-item"><strong>Size:</strong> {{ product.size }}</li>
+                                <li class="list-group-item"><strong>Material:</strong> {{ product.material }}</li>
+                                <li class="list-group-item"><strong>Features:</strong> {{ product.features }}</li>
+                                <li class="list-group-item"><strong>Tags:</strong> {{ product.tags }}</li>
+                                <li class="list-group-item"><strong>Discount Price:</strong> ${{ product.discount_price }}</li>
+                                <li class="list-group-item"><strong>Availability Status:</strong> {{ product.availability_status }}</li>
+                                <li class="list-group-item"><strong>Rating:</strong> {{ product.rating }}</li>
+                                <li class="list-group-item"><strong>Date Added:</strong> {{ product.date_added }}</li>
+                                <li class="list-group-item"><strong>Date Modified:</strong> {{ product.date_modified }}</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h2>Reviews</h2>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th scope="col">Review ID</th>
+                                    <th scope="col">Review Text</th>
+                                    <th scope="col">Reviewer</th>
+                                    <th scope="col">Rating</th>
+                                    <th scope="col">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for review in product.reviews %}
+                                    <tr>
+                                        <td>{{ review.id }}</td>
+                                        <td>{{ review.comment }}</td>
+                                        <td>{{ review.user_id }}</td>
+                                        <td>{{ review.rating }}</td>
+                                        <td>{{ review.created_at }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <h2>Attributes</h2>
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th scope="col">Attribute ID</th>
+                                    <th scope="col">Attribute Name</th>
+                                    <th scope="col">Attribute Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attribute in product.attributes %}
+                                    <tr>
+                                        <td>{{ attribute.id }}</td>
+                                        <td>{{ attribute.attribute_name }}</td>
+                                        <td>{{ attribute.attribute_value }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,1 +1,1 @@
-.schema
+SELECT * FROM Products;

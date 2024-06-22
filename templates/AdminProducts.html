@@ -20,6 +20,7 @@
                             <th scope="col">Product Id</th>
                             <th scope="col">Product Name</th>
                             <th scope="col">Description</th>
+                            <th scope="col">slug</th>
                             <th scope="col">Price</th>
                             <th scope="col">Category</th>
                             <th scope="col">Image</th>
@@ -81,15 +82,17 @@
                         <textarea class="form-control" id="description" name="description" required></textarea>
                     </div>
                     <div class="mb-3">
+                        <label for="slug" class="form-label">slug</label>
+                        <input class="form-control" type="text" id="slug" name="slug" required>
+                    </div>
+                    <div class="mb-3">
                         <label for="price" class="form-label">Price</label>
                         <input type="number" step="0.01" class="form-control" id="price" name="price" required>
                     </div>
                     <div class="mb-3">
                         <label for="category_id" class="form-label">Category</label>
-                        <select class="form-select" id="categoriesNames" name="category_id" required>
+                        <select class="form-select" id="addCategoryId" name="category_id" required>
                             <option selected disabled >Select a category</option>
-                            <!-- Options will be dynamically loaded -->
-                            <div class="categoryOptions"></div>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -138,7 +141,7 @@
                     </div>
                     <div class="mb-3">
                         <label for="discount_price" class="form-label">Discount Price</label>
-                        <input type="number" step="0.01" class="form-control" id="discount_price" name="discount_price">
+                        <input type="number" step="0.01" class="form-control" id="discount_price" name="discount_price" value="0">
                     </div>
                     <div class="mb-3">
                         <label for="availability_status" class="form-label">Availability Status</label>
@@ -176,21 +179,114 @@
     </div>
 </div>
 
+<div class="modal fade" id="editProductModal" tabindex="-1" aria-labelledby="editProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editProductModalLabel">Edit Product</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form enctype="multipart/form-data" id="editProductForm">
+                    <div class="mb-3">
+                        <label for="editProductName" class="form-label">Product Name</label>
+                        <input type="text" class="form-control" id="editProductName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editProductDescription" name="description" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="slug" class="form-label">slug</label>
+                        <input class="form-control" type="text" id="editProductSlug" name="slug" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductPrice" class="form-label">Price</label>
+                        <input type="number" step="0.01" class="form-control" id="editProductPrice" name="price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductCategory" class="form-label">Category</label>
+                        <select class="form-select" id="editCategoryId" name="category_id" required>
+                            <option selected disabled>Select a category</option>
+                            <!-- Options will be dynamically loaded -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductImageUrl" class="form-label">Image URL</label>
+                        <input type="text" class="form-control" id="editProductImageUrl" name="image_url">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductStockQuantity" class="form-label">Stock Quantity</label>
+                        <input type="number" class="form-control" id="editProductStockQuantity" name="stock_quantity" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductSku" class="form-label">SKU</label>
+                        <input type="text" class="form-control" id="editProductSku" name="sku" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductBrand" class="form-label">Brand</label>
+                        <input type="text" class="form-control" id="editProductBrand" name="brand">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductWeight" class="form-label">Weight</label>
+                        <input type="number" step="0.01" class="form-control" id="editProductWeight" name="weight">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductDimensions" class="form-label">Dimensions</label>
+                        <input type="text" class="form-control" id="editProductDimensions" name="dimensions">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductColor" class="form-label">Color</label>
+                        <input type="text" class="form-control" id="editProductColor" name="color">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductSize" class="form-label">Size</label>
+                        <input type="text" class="form-control" id="editProductSize" name="size">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductMaterial" class="form-label">Material</label>
+                        <input type="text" class="form-control" id="editProductMaterial" name="material">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductFeatures" class="form-label">Features</label>
+                        <textarea class="form-control" id="editProductFeatures" name="features"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductTags" class="form-label">Tags</label>
+                        <input type="text" class="form-control" id="editProductTags" name="tags">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductDiscountPrice" class="form-label">Discount Price</label>
+                        <input type="number" step="0.01" class="form-control" id="editProductDiscountPrice" name="discount_price" >
+                    </div>
+                    <div class="mb-3">
+                        <label for="editProductAvailabilityStatus" class="form-label">Availability Status</label>
+                        <select class="form-select" id="editProductAvailabilityStatus" name="availability_status" required>
+                            <option value="In Stock">In Stock</option>
+                            <option value="Out of Stock">Out of Stock</option>
+                            <option value="Preorder">Preorder</option>
+                        </select>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
-    AdminSearchBar();
-
-    
-    FetchProducts();
-
-    document.getElementById('addProductModal').addEventListener('shown.bs.modal', function () {
-        FetchSelectMenu();
+    document.addEventListener('DOMContentLoaded', function() {
+        FetchProducts();
+        FetchCategoriesSelectMenu('addCategoryId');
+        FetchCategoriesSelectMenu('editCategoryId');
+        AddProduct();
+        DeleteAndEditProduct();
     });
-
-    AddProduct();
-
-    DeleteAndEditProduct();
 </script>
 {% endblock %}

@@ -1,369 +1,336 @@
 from flask import Flask, render_template, request, redirect, flash, session, jsonify, url_for, make_response
 from flask_session import Session
-from Functions import validate, login_required_user, login_required_admin
+from flask_migrate import Migrate
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 from flask_restful import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
-from sqlalchemy import func, desc
+from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
+import os
+import jwt
+from functools import wraps
+from Functions import login_required_user, login_required_admin , validate, create_app
+from models import db, Users, Admins, Orders, Products, Categories, Reviews, ShippingDetails, Wishlists, Sales, ProductAttributes, allowed_file
+from werkzeug.utils import secure_filename
+import os
+from flask_wtf import FlaskForm
+from wtforms import FileField, SubmitField
+from wtforms.validators import DataRequired
+from PIL import Image
 
-# Initialize the Flask application
-app = Flask(__name__, static_folder='static')
+
+
+
+app = create_app()
 api = Api(app)
 
-# Configure SQLite database
-# Configure session to use filesystem (instead of signed cookies)
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///DataBase.db"
-app.config["SECRET_KEY"] = "salahisthegoat"
-
-Session(app)
-
-db = SQLAlchemy(app)
-
-
-class Users(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    userName = db.Column(db.String(20), nullable=False, unique=True)
-    password = db.Column(db.String(128), nullable=False)
-    email = db.Column(db.String(120), nullable=False, unique=True)
-    phoneNumber = db.Column(db.String(20), nullable=False)
-    profilePicture = db.Column(db.String(100), nullable=False, default='default.png')
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'userName': self.userName,
-            'email': self.email,
-            'phoneNumber': self.phoneNumber
-        }
-
-
-class Admins(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    userName = db.Column(db.String(20), nullable=False, unique=True)
-    password = db.Column(db.String(128), nullable=False)
-    profilePicture = db.Column(db.String(100), nullable=False, default='default.png')
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'userName': self.userName
-        }
-
-
-admin = Admins(
-    userName="admin",
-    password=generate_password_hash("admin", method='pbkdf2:sha256')
-)
-
-
-class Reviews(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    rating = db.Column(db.Integer, nullable=False)
-    comment = db.Column(db.Text, nullable=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'rating': self.rating,
-            'comment': self.comment,
-            'product_id': self.product_id,
-            'user_id': self.user_id,
-            'created_at': self.created_at
-        }
-
-
-class Products(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
-    image_file = db.Column(db.String(20), nullable=False, default='default.jpg')
-    stock_quantity = db.Column(db.Integer, nullable=False, default=0)
-    sku = db.Column(db.String(30), unique=True, nullable=False)
-    brand = db.Column(db.String(50), nullable=True)
-    weight = db.Column(db.Float, nullable=True)
-    dimensions = db.Column(db.String(50), nullable=True)
-    color = db.Column(db.String(30), nullable=True)
-    size = db.Column(db.String(30), nullable=True)
-    material = db.Column(db.String(50), nullable=True)
-    features = db.Column(db.Text, nullable=True)
-    tags = db.Column(db.String(100), nullable=True)
-    discount_price = db.Column(db.Float, nullable=True)
-    availability_status = db.Column(db.String(20), nullable=False, default='In Stock')
-    rating = db.Column(db.Float, nullable=True)
-    reviews = db.relationship('Reviews', backref='product', lazy=True)
-    date_added = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    date_modified = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description,
-            'price': self.price,
-            'category_id': self.category_id,
-            'image_file': self.image_file,
-            'stock_quantity': self.stock_quantity,
-            'sku': self.sku,
-            'brand': self.brand,
-            'weight': self.weight,
-            'dimensions': self.dimensions,
-            'color': self.color,
-            'size': self.size,
-            'material': self.material,
-            'features': self.features,
-            'tags': self.tags,
-            'discount_price': self.discount_price,
-            'availability_status': self.availability_status,
-            'rating': self.rating,
-            'reviews': [review.to_dict() for review in self.reviews],
-            'date_added': self.date_added,
-            'date_modified': self.date_modified
-        }
-
-
-class Categories(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
-    image_file = db.Column(db.String(20), nullable=True, default='default.jpg')
-    slug = db.Column(db.String(100), unique=True, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-    products = db.relationship('Products', backref='category', lazy=True)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'description': self.description,
-            'image_file': self.image_file,
-            'slug': self.slug,
-            'created_at': self.created_at,
-            'updated_at': self.updated_at,
-        }
-
-
-class Orders(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    order_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    status = db.Column(db.String(20), nullable=False, default='Pending')
-    total_amount = db.Column(db.Float, nullable=False)
-    shipping_address = db.Column(db.String(200), nullable=False)
-    order_items = db.relationship('Sales', backref='order', lazy=True)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'order_date': self.order_date,
-            'status': self.status,
-            'total_amount': self.total_amount,
-            'shipping_address': self.shipping_address,
-            'order_items': [item.to_dict() for item in self.order_items]
-        }
-
-
-class Sales(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    order_id = db.Column(db.Integer, db.ForeignKey('orders.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    unit_price = db.Column(db.Float, nullable=False)
-    discount = db.Column(db.Float, nullable=True)
-    total_price = db.Column(db.Float, nullable=False)
-    product = db.relationship('Products', backref='sales', lazy=True)
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'order_id': self.order_id,
-            'product_id': self.product_id,
-            'quantity': self.quantity,
-            'unit_price': self.unit_price,
-            'discount': self.discount,
-            'total_price': self.total_price
-        }
-
-
-
-
+# Admin Products Resource
 class AdminProducts(Resource):
-
+    @login_required_admin
     def get(self):
-        products = Products.query.all()
-        productList = []
-        for product in products:
-            category = Categories.query.filter_by(id=product.category_id).first()
-            product.category_name = category.name
-            productList.append(product.to_dict())
-        return make_response(jsonify(productList), 200)
+        try:
+            products = Products.query.all()
+            productList = []
+            for product in products:
+                category = Categories.query.filter_by(id=product.category_id).first()
+                product.category_name = category.name
+                productList.append(product.to_dict())
+                print(product.to_dict())
+            return make_response(jsonify(productList), 200)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
 
-    def post(self):
-        name = request.form.get('name')
-        description = request.form.get('description')
-        price = request.form.get('price')
-        category_id = request.form.get('category_id')
-        stock_quantity = request.form.get('stock_quantity')
-        sku = request.form.get('sku')
-        brand = request.form.get('brand')
-        weight = request.form.get('weight')
-        dimensions = request.form.get('dimensions')
-        color = request.form.get('color')
-        size = request.form.get('size')
-        material = request.form.get('material')
-        features = request.form.get('features')
-        tags = request.form.get('tags')
-        discount_price = request.form.get('discount_price')
-        availability_status = request.form.get('availability_status')
-        image_file = request.files['image_file']
-
-        # Save the image file if necessary
-        if image_file:
-            image_filename = secure_filename(image_file.filename)
-            image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
-        else:
-            image_filename = 'default.jpg'
-
-        product = Products(
-            name=name,
-            description=description,
-            price=price,
-            category_id=category_id,
-            stock_quantity=stock_quantity,
-            sku=sku,
-            brand=brand,
-            weight=weight,
-            dimensions=dimensions,
-            color=color,
-            size=size,
-            material=material,
-            features=features,
-            tags=tags,
-            discount_price=discount_price,
-            availability_status=availability_status,
-            image_file=image_filename
-        )
-
-        db.session.add(product)
-        db.session.commit()
-        return make_response(jsonify({"message": "Product created successfully"}), 201)
+    @login_required_admin
     
-    def delete(self, id):
-        product = Products.query.filter_by(id=id).first()
-        if product:
-            db.session.delete(product)
+    def post(self):
+        try:
+            data = request.form
+            name = data.get('name')
+            description = data.get('description')
+            slug = data.get('slug')
+            print(slug)
+            price = data.get('price', type=float)
+            category_id = data.get('category_id', type=int)
+            stock_quantity = data.get('stock_quantity', type=int)
+            sku = data.get('sku')
+            brand = data.get('brand')
+            weight = data.get('weight', type=float, default=0.0)
+            dimensions = data.get('dimensions')
+            color = data.get('color')
+            size = data.get('size')
+            material = data.get('material')
+            features = data.get('features')
+            tags = data.get('tags')
+            discount_price = data.get('discount_price', type=float, default=0.0)
+            availability_status = data.get('availability_status')
+            image_file = request.files.get('image_file')
+            
+            if not name or not description or not slug or price is None or category_id is None:
+                return make_response(jsonify({"error": "Missing required fields"}), 400)
+            
+            if image_file:
+                image_filename = secure_filename(image_file.filename)
+                image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+            else:
+                image_filename = 'default.jpg'
+            
+            product = Products(
+                name=name,
+                description=description,
+                slug=slug,
+                price=price,
+                category_id=category_id,
+                stock_quantity=stock_quantity,
+                sku=sku,
+                brand=brand,
+                weight=weight,
+                dimensions=dimensions,
+                color=color,
+                size=size,
+                material=material,
+                features=features,
+                tags=tags,
+                discount_price=discount_price,
+                availability_status=availability_status,
+                image_file=image_filename
+            )
+            
+            db.session.add(product)
             db.session.commit()
-            return make_response(jsonify({"message": "Product deleted successfully"}), 200)
-        else:
-            return make_response(jsonify({"message": "Product not found"}), 404)
-
+            
+            return make_response(jsonify({"message": "Product created successfully"}), 201)
         
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return make_response(jsonify({"error": str(e)}), 500)
+        except Exception as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+    
+    @login_required_admin
+    def delete(self, slug):
+        try:
+            product = Products.query.filter_by(slug=slug).first()
+            if product:
+                db.session.delete(product)
+                db.session.commit()
+                return make_response(jsonify({"message": "Product deleted successfully"}), 200)
+            else:
+                return make_response(jsonify({"message": "Product not found"}), 404)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+    
+    @login_required_admin
+    def put(self, slug):
+        try:
+            product = Products.query.filter_by(slug=slug).first()
+            if product:
+                data = request.form
+                product.name = data.get('name')
+                product.description = data.get('description')
+                product.slug = data.get('slug')
+                product.price = data.get('price')
+                product.category_id = data.get('category_id')
+                product.stock_quantity = data.get('stock_quantity')
+                product.sku = data.get('sku')
+                product.brand = data.get('brand')
+                product.weight = data.get('weight')
+                product.dimensions = data.get('dimensions')
+                product.color = data.get('color')
+                product.size = data.get('size')
+                product.material = data.get('material')
+                product.features = data.get('features')
+                product.tags = data.get('tags')
+                product.discount_price = data.get('discount_price')
+                product.availability_status = data.get('availability_status')
+                db.session.commit()
+                return make_response(jsonify({"message": "Product updated successfully"}), 200)
+            else:
+                return make_response(jsonify({"message": "Product not found"}), 404)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
+# Admin Categories Resource
 class AdminCategories(Resource):
-
+    @login_required_admin
     def get(self):
-        categories = Categories.query.all()
-        categories_list = [category.to_dict() for category in categories]
-        return make_response(jsonify(categories_list), 200)
+        try:
+            categories = Categories.query.all()
+            categories_list = [category.to_dict() for category in categories]
+            return make_response(jsonify(categories_list), 200)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
     
+    @login_required_admin
     def post(self):
-        data = request.form
-        new_category = Categories(
-            name=data.get('name'),
-            description=data.get('description'),
-            image_file=data.get('image_file', 'default.jpg'),
-            slug=data.get('slug')
-        )
-        
-        db.session.add(new_category)
-        db.session.commit()
-        
-        return make_response(jsonify({"message": "Category created successfully"}), 201)
-
-    def put(self, id):  
-        data = request.form
-        category = Categories.query.filter_by(id=id).first()
-        if category:
-            category.name = data.get('name')
-            category.description = data.get('description')
-            category.image_file = data.get('image_file', 'default.jpg')
-            category.slug = data.get('slug')
-            category.updated_at = datetime.utcnow()
+        try:
+            data = request.form
+            new_category = Categories(
+                name=data.get('name'),
+                description=data.get('description'),
+                image_file=data.get('image_file', 'default.jpg'),
+                slug=data.get('slug')
+            )
+            
+            db.session.add(new_category)
             db.session.commit()
-            return make_response(jsonify({"message": "Category updated successfully"}), 200)
-        else:
-            return make_response(jsonify({"message": "Category not found"}), 404)
+            
+            return make_response(jsonify({"message": "Category created successfully"}), 201)
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return make_response(jsonify({"error": str(e)}), 500)
+    
+    @login_required_admin
+    def put(self, slug):
+        try:
+            data = request.form
+            category = Categories.query.filter_by(slug=slug).first()
+            if category:
+                category.name = data.get('name')
+                category.description = data.get('description')
+                category.image_file = data.get('image_file', 'default.jpg')
+                category.slug = data.get('slug')
+                category.updated_at = datetime.utcnow()
+                db.session.commit()
+                return make_response(jsonify({"message": "Category updated successfully"}), 200)
+            else:
+                return make_response(jsonify({"message": "Category not found"}), 404)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+    
+    @login_required_admin
+    def delete(self, slug):
+        try:
+            category = Categories.query.filter_by(slug=slug).first()
+            if category:
+                db.session.delete(category)
+                db.session.commit()
+                return make_response(jsonify({"message": "Category deleted successfully"}), 200)
+            else:
+                return make_response(jsonify({"message": "Category not found"}), 404)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
 
-    def delete(self, id):
-        category = Categories.query.filter_by(id=id).first()
-        if category:
-            db.session.delete(category)
-            db.session.commit()
-            return make_response(jsonify({"message": "Category deleted successfully"}), 200)
-        else:
-            return make_response(jsonify({"message": "Category not found"}), 404)
-        
-        
+# Admin Users Resource
 class AdminUsers(Resource):
-
+    @login_required_admin
     def get(self):
-        users = Users.query.all()
-        for user in users:
-            print (user)
-        users_list = [user.to_dict() for user in users]
-        return make_response(jsonify(users_list), 200)
+        try:
+            users = Users.query.all()
+            users_list = [user.to_dict() for user in users]
+            return make_response(jsonify(users_list), 200)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+    
+    @login_required_admin
+    def delete(self, id):
+        try:
+            user = Users.query.filter_by(id=id).first()
+            if user:
+                db.session.delete(user)
+                db.session.commit()
+                return make_response(jsonify({"message": "User deleted successfully"}), 200)
+            else:
+                return make_response(jsonify({"message": "User not found"}), 404)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
+# Admin Orders Resource
+class AdminOrders(Resource):
+    @login_required_admin
+    def get(self):
+        try:
+            orders = Orders.query.all()
+            orders_list = [order.to_dict() for order in orders]
+            return make_response(jsonify(orders_list), 200)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+    
+    @login_required_admin
+    def put(self, id):
+        try:
+            data = request.form
+            order = Orders.query.filter_by(id=id).first()
+            if order:
+                order.order_status = data.get('order_status')
+                order.payment_status = data.get('payment_status')
+                order.shipping_status = data.get('shipping_status')
+                db.session.commit()
+                return make_response(jsonify({"message": "Order updated successfully"}), 200)
+            else:
+                return make_response(jsonify({"message": "Order not found"}), 404)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
+# Admin Reviews Resource
+class AdminReviews(Resource):
+    @login_required_admin
+    def get(self):
+        try:
+            reviews = Reviews.query.all()
+            reviews_list = [review.to_dict() for review in reviews]
+            return make_response(jsonify(reviews_list), 200)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
+# Admin Dashboard Resource
+class AdminDashboard(Resource):
+    @login_required_admin
+    def get(self):
+        try:
+            totalUsers = Users.query.count()
+            totalOrders = Orders.query.count()
+            totalProducts = Products.query.count()
+            totalCategories = Categories.query.count()
+            totalSales = db.session.query(func.sum(Sales.total_price)).scalar()
+            totalRevenue = db.session.query(func.sum(Orders.total_amount)).scalar()
+            
+            dashboard_data = {
+                "totalUsers": totalUsers,
+                "totalOrders": totalOrders,
+                "totalProducts": totalProducts,
+                "totalCategories": totalCategories,
+                "totalSales": totalSales,
+                "totalRevenue": totalRevenue
+            }
+            return make_response(jsonify(dashboard_data), 200)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
+class UserCategories(Resource):
+    def get(self):
+        try:
+            categories = Categories.query.all()
+            categories_list = [category.to_dict() for category in categories]
+            return make_response(jsonify(categories_list), 200)
+        except Exception as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
+class UserProducts(Resource):
+    def get(self):
+        try:
+            products = Products.query.all()
+            products_list = [product.to_dict() for product in products]
+            return make_response(jsonify(products_list), 200)
+        except Exception as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
     
 
-    def delete(self, id):
-        user = Users.query.filter_by(id=id).first()
-        if user:
-            db.session.delete(user)
-            db.session.commit()
-            return make_response(jsonify({"message": "User deleted successfully"}), 200)
-        else:
-            return make_response(jsonify({"message": "User not found"}), 404)
-
-
-class AdminDashboard(Resource):
-
-    def get(self):
-        
-        
-        TopSalesQuery = db.session.query(
-            Sales.product_id,
-            func.sum(Sales.total_price).label('total_sales')
-        ).group_by(Sales.product_id).order_by(desc('total_sales')).limit(5)
-
-        topSales = TopSalesQuery.all()
-
-        topSalesList = [{'product_id': Products.query.filter_by(id=product_id).first().name, 'total_sales': total_sales} for product_id, total_sales in topSales]
-        stats = {
-            "totalProducts": Products.query.count(),
-            "totalCategories": Categories.query.count(),
-            "totalUsers": Users.query.count(),
-            "totalOrders": Orders.query.count(),
-            "totalSales": Sales.query.count(),
-            "newOrders": [order.to_dict() for order in Orders.query.order_by(Orders.id.desc()).limit(5).all()],
-            "newReviews": [review.to_dict() for review in Reviews.query.order_by(Reviews.id.desc()).limit(5).all()],
-            "topSales": topSalesList,
-        }
-        
-        return make_response(jsonify(stats),200)
-
-api.add_resource(AdminCategories, '/AdminPanel/Categories/OPS', '/AdminPanel/Categories/OPS/<int:id>')
+api.add_resource(AdminCategories, '/AdminPanel/Categories/OPS', '/AdminPanel/Categories/OPS/<string:slug>')
 api.add_resource(AdminUsers, '/AdminPanel/Users/OPS', '/AdminPanel/Users/OPS/<int:id>')
 api.add_resource(AdminDashboard, '/AdminPanel/Dashboard/Stats')
-api.add_resource(AdminProducts, '/AdminPanel/Products/OPS', '/AdminPanel/Products/OPS/<int:id>')
-# Route for the landing page
+api.add_resource(AdminProducts, '/AdminPanel/Products/OPS', '/AdminPanel/Products/OPS/<string:slug>')
+api.add_resource(UserCategories, '/HomePage/OPS/Categories')
+api.add_resource(UserProducts, '/HomePage/OPS/Products')
 
+
+class UploadForm(FlaskForm):
+    file = FileField('Upload an Image', validators=[DataRequired()])
+    submit = SubmitField('Upload')
+    
+    
 @app.route("/", methods=["GET"])
 
 def Index():
@@ -399,13 +366,13 @@ def UsersSearch():
 
     if search:
 
-        queries = Users.query.filter(Users.userName.like(search + '%')).all()
+        queries = Products.query.filter(Products.name.like(search + '%')).all()
 
         for query in queries:
 
             element = {
 
-                "username": query.userName
+                "productName": query.name
 
             }
             results.append(element)
@@ -414,7 +381,7 @@ def UsersSearch():
     return jsonify(results)
 
 @app.route("/AdminPanel/Dashboard/Search")
-
+@login_required_admin
 def AdminsSearch():
 
     search = request.args.get("search")
@@ -706,36 +673,106 @@ def AdminLogIn():
 
         return render_template("AdminLogIn.html")
     
+@app.route('/upload', methods=['GET', 'POST'])
+@login_required_admin
+def upload_file():
+    form = UploadForm()
+    if form.validate_on_submit():
+        file = form.file.data
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+
+            # Optionally, resize image or perform other processing
+            img = Image.open(filepath)
+            img = img.resize((800, 800))  # Example resize
+            img.save(filepath)
+
+            flash('File successfully uploaded and processed', 'success')
+            return redirect(url_for('upload_file'))
+
+        flash('Invalid file format', 'danger')
+    flash("dont try this again", 'danger')
+    redirect("/AdminPanel/Dashboard")
+        
+
 
 @app.route("/AdminPanel/Dashboard", methods=["GET"])
-
+@login_required_admin
 def Dashboard():
 
     return render_template("AdminDashboard.html")
     
     
 @app.route("/AdminPanel/Products", methods=["GET", "POST"])
+@login_required_admin
 
 def ProductsRoute():
 
     return render_template("AdminProducts.html")
 
 @app.route("/AdminPanel/Categories", methods=["GET", "POST"])
-def CategoriesRoute():
+@login_required_admin
+
+def AdminCategoriesRoute():
 
     return render_template("AdminCategories.html")
 
 @app.route("/AdminPanel/Users", methods=["GET", "POST"])
+
+@login_required_admin
 def UsersRoute():
     
     return render_template("AdminUsers.html")
 
-# Run the application
+
+@app.route("/AdminPanel/Orders", methods=["GET", "POST"])
+@login_required_admin
+
+def OrdersRoute():
+    
+    return render_template("AdminOrders.html")
+
+
+
+@app.route("/HomePage/Categories", methods=["GET", "POST"])
+@login_required_user
+def UsersCategoriesRoute():
+    
+    slug = request.args.get("slug")
+    category = Categories.query.filter_by(slug=slug).first()
+    
+    if category is None :
+        flash("Category not found", "error")
+        return redirect("/HomePage")
+    products = Products.query.filter_by(category_id=category.id).all()
+    if not products:
+        flash("Category not found", "error")
+        return redirect("/HomePage")
+    productsSerialized = [product.to_dict() for product in products]        
+    return render_template("UsersCategory.html", category=category.to_dict() , products=productsSerialized)
+    
+
+@app.route("/HomePage/Products", methods=["GET", "POST"])
+@login_required_user
+def UsersProductsRoute():
+    
+    slug = request.args.get("slug")
+    product = Products.query.filter_by(slug=slug).first()
+    if product is None:
+        
+        flash("Product not found", "error")
+        return redirect("/HomePage")
+    
+    return render_template("UsersProducts.html", product=product.to_dict())
+        
+
+
 
 
 if __name__ == "__main__":
     with app.app_context():
-
         db.create_all()
         admin = Admins.query.filter_by(userName="admin").first()
         if not admin:

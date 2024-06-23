@@ -1,8 +1,13 @@
 from email_validator import validate_email, EmailNotValidError
-from flask import flash, redirect, url_for, session
+from flask import Flask,flash, redirect, url_for, session
 from functools import wraps
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 import os
+from models import db
+from flask_migrate import Migrate
+from flask_session import Session
+
 
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -14,14 +19,18 @@ def allowed_file(filename):
 
 
 def create_app():
-    app = Flask(__name__, static_folder='static')
+    
+    app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv("DATABASE_URL", "sqlite:///DataBase.db")
-    app.config['UPLOAD_FOLDER'] = 'static/uploads'
     app.config["SESSION_PERMANENT"] = False
     app.config["SESSION_TYPE"] = "filesystem"
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "salahisthegoat")
-    app.config['UPLOAD_FOLDER'] = 'static/uploads/'
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+    app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
+    app.config['UPLOAD_FOLDER'] = os.path.join('static', 'images', 'uploads')
+
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+
     
     db.init_app(app)
     migrate = Migrate(app, db)

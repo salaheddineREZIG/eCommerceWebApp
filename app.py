@@ -9,22 +9,31 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 import os
-import jwt
 from functools import wraps
-from Functions import login_required_user, login_required_admin , validate, create_app
-from models import db, Users, Admins, Orders, Products, Categories, Reviews, ShippingDetails, Wishlists, Sales, ProductAttributes, allowed_file
+from Functions import login_required_user, login_required_admin , validate, create_app, allowed_file
+from models import db, Users, Admins, Orders, Products, Categories, Reviews, ShippingDetails, Wishlists, Sales, ProductAttributes
 from werkzeug.utils import secure_filename
 import os
-from flask_wtf import FlaskForm
-from wtforms import FileField, SubmitField
-from wtforms.validators import DataRequired
 from PIL import Image
-
-
-
 
 app = create_app()
 api = Api(app)
+
+
+class UploadFiles(Resource):
+    @login_required_admin
+    def post(self):
+        try:
+            image_file = request.files.get('file') # Ensure the key matches the form data
+            if image_file:
+                image_filename = secure_filename(image_file.filename)
+                image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+                return make_response(jsonify({"message": "Image uploaded successfully", "image_file": image_filename}), 200)
+            else:
+                return make_response(jsonify({"message": "No image file provided"}), 400)
+        except SQLAlchemyError as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
 
 # Admin Products Resource
 class AdminProducts(Resource):
@@ -323,14 +332,9 @@ api.add_resource(AdminUsers, '/AdminPanel/Users/OPS', '/AdminPanel/Users/OPS/<in
 api.add_resource(AdminDashboard, '/AdminPanel/Dashboard/Stats')
 api.add_resource(AdminProducts, '/AdminPanel/Products/OPS', '/AdminPanel/Products/OPS/<string:slug>')
 api.add_resource(UserCategories, '/HomePage/OPS/Categories')
-api.add_resource(UserProducts, '/HomePage/OPS/Products')
-
-
-class UploadForm(FlaskForm):
-    file = FileField('Upload an Image', validators=[DataRequired()])
-    submit = SubmitField('Upload')
-    
-    
+api.add_resource(UserProducts, '/HomePage/OPS/Products') 
+api.add_resource(UploadFiles, '/AdminPanel/Upload')   
+      
 @app.route("/", methods=["GET"])
 
 def Index():
@@ -673,31 +677,7 @@ def AdminLogIn():
 
         return render_template("AdminLogIn.html")
     
-@app.route('/upload', methods=['GET', 'POST'])
-@login_required_admin
-def upload_file():
-    form = UploadForm()
-    if form.validate_on_submit():
-        file = form.file.data
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-
-            # Optionally, resize image or perform other processing
-            img = Image.open(filepath)
-            img = img.resize((800, 800))  # Example resize
-            img.save(filepath)
-
-            flash('File successfully uploaded and processed', 'success')
-            return redirect(url_for('upload_file'))
-
-        flash('Invalid file format', 'danger')
-    flash("dont try this again", 'danger')
-    redirect("/AdminPanel/Dashboard")
-        
-
-
+    
 @app.route("/AdminPanel/Dashboard", methods=["GET"])
 @login_required_admin
 def Dashboard():

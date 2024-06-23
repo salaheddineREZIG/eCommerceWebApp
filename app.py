@@ -46,7 +46,6 @@ class AdminProducts(Resource):
                 category = Categories.query.filter_by(id=product.category_id).first()
                 product.category_name = category.name
                 productList.append(product.to_dict())
-                print(product.to_dict())
             return make_response(jsonify(productList), 200)
         except SQLAlchemyError as e:
             return make_response(jsonify({"error": str(e)}), 500)
@@ -59,7 +58,6 @@ class AdminProducts(Resource):
             name = data.get('name')
             description = data.get('description')
             slug = data.get('slug')
-            print(slug)
             price = data.get('price', type=float)
             category_id = data.get('category_id', type=int)
             stock_quantity = data.get('stock_quantity', type=int)
@@ -122,6 +120,9 @@ class AdminProducts(Resource):
         try:
             product = Products.query.filter_by(slug=slug).first()
             if product:
+                imageFile = os.path.join(app.config['UPLOAD_FOLDER'], product.image_file)
+                if os.path.exists(imageFile) and product.image_file != 'default.jpg':
+                    os.remove(imageFile)
                 db.session.delete(product)
                 db.session.commit()
                 return make_response(jsonify({"message": "Product deleted successfully"}), 200)
@@ -380,7 +381,6 @@ def UsersSearch():
 
             }
             results.append(element)
-    print(results)
 
     return jsonify(results)
 
@@ -390,7 +390,6 @@ def AdminsSearch():
 
     search = request.args.get("search")
     searchType = request.args.get("type")
-    print(searchType + " " + search)
 
     results = []
 
@@ -415,9 +414,6 @@ def AdminsSearch():
             for query in queries:
                 results.append({"reviewText": query.comment})
 
-    for result in results:
-        print (result)
-        
     return jsonify(results)
            
 # Route for user sign-up

@@ -1,6 +1,4 @@
 from flask import Flask, render_template, request, redirect, flash, session, jsonify, url_for, make_response
-from flask_session import Session
-from flask_migrate import Migrate
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from flask_restful import Api, Resource

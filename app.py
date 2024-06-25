@@ -18,23 +18,43 @@ app = create_app()
 api = Api(app)
 
 
-class UploadFiles(Resource):
+class FileManager(Resource):
     @login_required_admin
     def post(self):
+        return self.upload_file(request.files.get('file'))
+    
+    @login_required_admin
+    def delete(self, filename):
+        return self.delete_file(filename)
+
+    @staticmethod
+    def upload_file(image_file):
         try:
-            image_file = request.files.get('file') # Ensure the key matches the form data
             if image_file:
                 image_filename = secure_filename(image_file.filename)
-                image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
-                return make_response(jsonify({"message": "Image uploaded successfully", "image_file": image_filename}), 200)
+                image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+                image_file.save(image_path)
+                return {"message": "Image uploaded successfully", "image_file": image_filename}, 200
             else:
-                return make_response(jsonify({"message": "No image file provided"}), 400)
-        except SQLAlchemyError as e:
-            return make_response(jsonify({"error": str(e)}), 500)
+                return {"message": "No image file provided"}, 400
+        except Exception as e:
+            return {"error": str(e)}, 500
+
+    @staticmethod
+    def delete_file(filename):
+        try:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if not os.path.exists(file_path):
+                return {"message": "Image not found"}, 404
+            
+            os.remove(file_path)
+            return {"message": "Image deleted successfully"}, 200
+        except Exception as e:
+            return {"error": str(e)}, 500
 
 
-# Admin Products Resource
 class AdminProducts(Resource):
+    
     @login_required_admin
     def get(self):
         try:
@@ -47,9 +67,9 @@ class AdminProducts(Resource):
             return make_response(jsonify(productList), 200)
         except SQLAlchemyError as e:
             return make_response(jsonify({"error": str(e)}), 500)
-
+        
+        
     @login_required_admin
-    
     def post(self):
         try:
             data = request.form
@@ -70,17 +90,20 @@ class AdminProducts(Resource):
             tags = data.get('tags')
             discount_price = data.get('discount_price', type=float, default=0.0)
             availability_status = data.get('availability_status')
-            image_file = request.files.get('image_file')
-            
+
             if not name or not description or not slug or price is None or category_id is None:
                 return make_response(jsonify({"error": "Missing required fields"}), 400)
-            
+
+            image_file = request.files.get('image_file')
+            image_filename = 'default.jpg'
+
             if image_file:
-                image_filename = secure_filename(image_file.filename)
-                image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
-            else:
-                image_filename = 'default.jpg'
-            
+                upload_result, status_code = FileManager.upload_file(image_file)
+                if status_code == 200:
+                    image_filename = upload_result["image_file"]
+                else:
+                    return make_response(jsonify({"error": upload_result["message"]}), status_code)
+
             product = Products(
                 name=name,
                 description=description,
@@ -101,26 +124,30 @@ class AdminProducts(Resource):
                 availability_status=availability_status,
                 image_file=image_filename
             )
-            
+
             db.session.add(product)
             db.session.commit()
-            
+
             return make_response(jsonify({"message": "Product created successfully"}), 201)
-        
+
         except SQLAlchemyError as e:
             db.session.rollback()
             return make_response(jsonify({"error": str(e)}), 500)
         except Exception as e:
             return make_response(jsonify({"error": str(e)}), 500)
-    
+            
     @login_required_admin
     def delete(self, slug):
         try:
             product = Products.query.filter_by(slug=slug).first()
             if product:
-                imageFile = os.path.join(app.config['UPLOAD_FOLDER'], product.image_file)
-                if os.path.exists(imageFile) and product.image_file != 'default.jpg':
-                    os.remove(imageFile)
+                image_file = product.image_file
+                
+                if image_file and image_file != 'default.jpg':
+                    delete_result, status_code = FileManager.delete_file(image_file)
+                    if status_code != 200:
+                        return make_response(jsonify({"error": delete_result["message"]}), status_code)
+                    
                 db.session.delete(product)
                 db.session.commit()
                 return make_response(jsonify({"message": "Product deleted successfully"}), 200)
@@ -152,12 +179,29 @@ class AdminProducts(Resource):
                 product.tags = data.get('tags')
                 product.discount_price = data.get('discount_price')
                 product.availability_status = data.get('availability_status')
+                new_image_file = request.files.get('image_file')
+
+                if new_image_file:
+                    if product.image_file and product.image_file != 'default.jpg':
+                        FileManager.delete_file(product.image_file)
+
+                    upload_result, status_code = FileManager.upload_file(new_image_file)
+                    if status_code == 200:
+                        product.image_file = upload_result["image_file"]
+                    else:
+                        return make_response(jsonify({"error": upload_result["message"]}), status_code)
+                elif not product.image_file:
+                    product.image_file = 'default.jpg'
+
                 db.session.commit()
                 return make_response(jsonify({"message": "Product updated successfully"}), 200)
             else:
                 return make_response(jsonify({"message": "Product not found"}), 404)
         except SQLAlchemyError as e:
             return make_response(jsonify({"error": str(e)}), 500)
+        except Exception as e:
+            return make_response(jsonify({"error": str(e)}), 500)
+
 
 # Admin Categories Resource
 class AdminCategories(Resource):
@@ -332,7 +376,7 @@ api.add_resource(AdminDashboard, '/AdminPanel/Dashboard/Stats')
 api.add_resource(AdminProducts, '/AdminPanel/Products/OPS', '/AdminPanel/Products/OPS/<string:slug>')
 api.add_resource(UserCategories, '/HomePage/OPS/Categories')
 api.add_resource(UserProducts, '/HomePage/OPS/Products') 
-api.add_resource(UploadFiles, '/AdminPanel/Upload')   
+api.add_resource(FileManager, '/AdminPanel/Files')   
       
 @app.route("/", methods=["GET"])
 

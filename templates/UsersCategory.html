@@ -10,7 +10,7 @@
                     <h6>{{category.id}}</h6>
                     <h6>{{category.slug}}</h6>
                     <h6>{{category.description}}</h6>
-                    <img src="{{category.image_file}}" alt="Category Image" width="50" height="50">
+                    <img src="/static/images/uploads/{{category.image_file }}" alt="Category Image" width="150" height="150">
                     <h6>{{category.created_at}}</h6>
                     <h6>{{category.up}}</h6>
 
@@ -28,7 +28,6 @@
                                     <th scope="col">Product Name</th>
                                     <th scope="col">Description</th>
                                     <th scope="col">Price</th>
-                                    <th scope="col">Category</th>
                                     <th scope="col">Image</th>
                                     <th scope="col">Stock Quantity</th>
                                     <th scope="col">SKU</th>
@@ -53,10 +52,10 @@
                                 {% for product in products %}
                                     <tr>
                                         <td>{{product.id}}</td>
-                                        <td><a href="/HomePage/Products?id={{product.id}}">{{product.name}}</a></td>
+                                        <td><a href="/HomePage/Products?slug={{product.slug}}">{{product.name}}</a></td>
                                         <td>{{product.slug}}</td>  
                                         <td>{{product.description}}</td>
-                                        <td><img src="{{product.image_file}}" alt="Product Image" width="50" height="50"></td>
+                                        <td><img src="/static/images/uploads/{{product.image_file }}" alt="Product Image" width="50" height="50"></td>
                                         <td>{{product.price}}</td>
                                         <td>{{product.category_id}}<</td>
                                         <td>{{product.stock_quantity}}</td>

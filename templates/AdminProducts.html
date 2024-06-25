@@ -208,12 +208,11 @@
                         <label for="editProductCategory" class="form-label">Category</label>
                         <select class="form-select" id="editCategoryId" name="category_id" required>
                             <option selected disabled>Select a category</option>
-                            <!-- Options will be dynamically loaded -->
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="editProductImageUrl" class="form-label">Image URL</label>
-                        <input type="text" class="form-control" id="editProductImageUrl" name="image_url">
+                        <label for="editProductImageFile" class="form-label" id="editProductImageFileSpan"></label>
+                        <input type="file" class="form-control" id="editProductImageFile" name="image_file" >
                     </div>
                     <div class="mb-3">
                         <label for="editProductStockQuantity" class="form-label">Stock Quantity</label>

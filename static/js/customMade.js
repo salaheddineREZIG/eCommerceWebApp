@@ -325,13 +325,14 @@ async function FetchProducts() {
                 <td>
                     <button class="btn btn-warning btn-sm editButton" data-bs-toggle="modal" data-bs-target="#editProductModal" 
                             data-name="${item.name}" data-description="${item.description}" data-slug="${item.slug}" data-price="${item.price}" 
-                            data-category_id="${item.category_id}" data-image_url="${item.image_url}" data-stock_quantity="${item.stock_quantity}" 
+                            data-category_id="${item.category_id}" data-image_file="${item.image_file}" data-stock_quantity="${item.stock_quantity}" 
                             data-sku="${item.sku}" data-brand="${item.brand}" data-weight="${item.weight}" data-dimensions="${item.dimensions}" 
                             data-color="${item.color}" data-size="${item.size}" data-material="${item.material}" data-features="${item.features}" 
                             data-tags="${item.tags}" data-discount_price="${item.discount_price}" data-availability_status="${item.availability_status}">Edit</button>
                     <button class="btn btn-danger btn-sm deleteButton" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" 
                             data-slug="${item.slug}">Delete</button>
                 </td>`;
+                console.log(item.slug);
             table.appendChild(row);
         });
     } catch (error) {
@@ -342,6 +343,8 @@ async function FetchProducts() {
 
 
 async function FetchCategoriesSelectMenu(optionId) {
+    console.log('FetchCategoriesSelectMenu', optionId);
+
     try {
         let response = await fetch('/AdminPanel/Categories/OPS', { method: 'GET' });
 
@@ -378,27 +381,19 @@ async function FetchCategoriesSelectMenu(optionId) {
     }
 }
 
+
 async function AddProduct() {
+    const form = document.getElementById("addProductForm");
     
-    document.getElementById("addProductForm").addEventListener("submit", async function(event) {event.preventDefault(); // Prevent default form submission
-        const form = event.target;
-        const file = form.image_file.files[0];
+    form.addEventListener("submit", async function(event) {
+        event.preventDefault(); // Prevent default form submission
+
+        const formData = new FormData(form);
 
         try {
             const submitButton = form.querySelector('button[type="submit"]');
             submitButton.disabled = true; // Disable submit button to prevent multiple submissions
             submitButton.innerText = 'Submitting...'; // Indicate submission process
-
-            let filename = '';
-
-            if (file) {
-                filename = await UploadFile(file);
-            }
-
-            const formData = new FormData(form);
-            if (filename) {
-                formData.append('image_filename', filename);
-            }
 
             const response = await fetch('/AdminPanel/Products/OPS', {
                 method: 'POST',
@@ -406,7 +401,7 @@ async function AddProduct() {
             });
 
             submitButton.disabled = false; // Re-enable submit button
-            submitButton.innerText = 'Add Product'; // Reset button text
+            submitButton.innerText = 'Submit'; // Reset button text
 
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -414,7 +409,7 @@ async function AddProduct() {
 
             const data = await response.json();
 
-            FlashMessage(data.message, 'success');
+            FlashMessage(data.message,'success')
 
             // Clear the form
             form.reset();
@@ -430,24 +425,6 @@ async function AddProduct() {
             alert(`An error occurred while adding the product: ${error.message}`);
         }
     });
-
-}
-
-async function UploadFile(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await fetch('/AdminPanel/Upload', {
-        method: 'POST',
-        body: formData
-    });
-
-    const data = await response.json();
-    if (response.ok) {
-        return data.image_file; // Ensure the key matches the backend response
-    } else {
-        throw new Error(data.error);
-    }
 }
 
 
@@ -455,13 +432,12 @@ async function DeleteAndEditProduct() {
     document.getElementById('productsTableBody').addEventListener('click', async function(event) {
         if (event.target.classList.contains('editButton')) {
             const editButton = event.target;
-            const productId = editButton.getAttribute('data-id');
             const productName = editButton.getAttribute('data-name');
             const productDescription = editButton.getAttribute('data-description');
             const productSlug = editButton.getAttribute('data-slug');
             const productPrice = editButton.getAttribute('data-price');
             const productCategoryId = editButton.getAttribute('data-category_id');
-            const productImageUrl = editButton.getAttribute('data-image_url');
+            const productImageFile = editButton.getAttribute('data-image_file');
             const productStockQuantity = editButton.getAttribute('data-stock_quantity');
             const productSku = editButton.getAttribute('data-sku');
             const productBrand = editButton.getAttribute('data-brand');
@@ -475,8 +451,7 @@ async function DeleteAndEditProduct() {
             const productDiscountPrice = editButton.getAttribute('data-discount_price');
             const productAvailabilityStatus = editButton.getAttribute('data-availability_status');
             
-            const editForm = document.getElementById('editProductForm');
-            editForm.setAttribute('data-slug', productSlug);
+            document.getElementById('editProductForm').setAttribute('data-slug', productSlug);
 
             // Populate the edit form with the product data
             document.getElementById('editProductName').value = productName;
@@ -484,7 +459,7 @@ async function DeleteAndEditProduct() {
             document.getElementById('editProductSlug').value = productSlug;
             document.getElementById('editProductPrice').value = productPrice;
             document.getElementById('editCategoryId').value = productCategoryId; 
-            document.getElementById('editProductImageUrl').value = productImageUrl;
+            document.getElementById('editProductImageFileSpan').innerHTML = `Image File: ` + productImageFile +`<button id="deleteImageButton" class='btn btn-danger'>Delete</button>" `;
             document.getElementById('editProductStockQuantity').value = productStockQuantity;
             document.getElementById('editProductSku').value = productSku;
             document.getElementById('editProductBrand').value = productBrand;
@@ -498,9 +473,9 @@ async function DeleteAndEditProduct() {
             document.getElementById('editProductDiscountPrice').value = productDiscountPrice;
             document.getElementById('editProductAvailabilityStatus').value = productAvailabilityStatus;
 
-            editForm.addEventListener('submit', async function handleEditFormSubmit(event) {
+            document.getElementById('editProductForm').addEventListener('submit', async function handleEditFormSubmit(event) {
                 event.preventDefault();
-
+                const editForm = document.getElementById('editProductForm');
                 const formData = new FormData(editForm);
                 const productSlug = editForm.getAttribute('data-slug');
 

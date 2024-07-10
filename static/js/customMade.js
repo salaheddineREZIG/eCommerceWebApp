@@ -140,7 +140,7 @@ async function FetchCategories() {
                 <td>${new Date(item.updated_at).toLocaleString()}</td>
                 <td>
                     <button class="btn btn-warning btn-sm editButton" data-bs-toggle="modal" data-bs-target="#editCategoryModal" 
-                            data-name="${item.name}" data-description="${item.description}" data-slug="${item.slug}">Edit</button>
+                            data-name="${item.name}" data-description="${item.description}" data-image="${item.image_file}" data-slug="${item.slug}">Edit</button>
                     <button class="btn btn-danger btn-sm deleteButton" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" 
                             data-slug="${item.slug}">Delete</button>
                 </td>`;
@@ -201,6 +201,7 @@ async function DeleteAndEditCategory() {
             const editButton = event.target;
             const categoryName = editButton.getAttribute('data-name');
             const categoryDescription = editButton.getAttribute('data-description');
+            const categoryImage = editButton.getAttribute('data-image');
             const categorySlug = editButton.getAttribute('data-slug');
 
             const editForm = document.getElementById('editCategoryForm');
@@ -210,6 +211,7 @@ async function DeleteAndEditCategory() {
             document.getElementById('editName').value = categoryName;
             document.getElementById('editDescription').value = categoryDescription;
             document.getElementById('editSlug').value = categorySlug;
+            document.getElementById('editCategoryImageFileSpan').innerHTML = `Image File: ` + categoryImage +`<button id="deleteImageButton" class='btn btn-danger'>Delete</button>" `;
         } 
         else if (event.target.classList.contains('deleteButton')) {
             const categorySlug = event.target.getAttribute('data-slug');
@@ -332,7 +334,6 @@ async function FetchProducts() {
                     <button class="btn btn-danger btn-sm deleteButton" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" 
                             data-slug="${item.slug}">Delete</button>
                 </td>`;
-                console.log(item.slug);
             table.appendChild(row);
         });
     } catch (error) {
@@ -343,7 +344,6 @@ async function FetchProducts() {
 
 
 async function FetchCategoriesSelectMenu(optionId) {
-    console.log('FetchCategoriesSelectMenu', optionId);
 
     try {
         let response = await fetch('/AdminPanel/Categories/OPS', { method: 'GET' });
@@ -459,7 +459,7 @@ async function DeleteAndEditProduct() {
             document.getElementById('editProductSlug').value = productSlug;
             document.getElementById('editProductPrice').value = productPrice;
             document.getElementById('editCategoryId').value = productCategoryId; 
-            document.getElementById('editProductImageFileSpan').innerHTML = `Image File: ` + productImageFile +`<button id="deleteImageButton" class='btn btn-danger'>Delete</button>" `;
+            document.getElementById('editProductImageFileSpan').innerHTML = `Image File: ` + productImageFile +`<button id="deleteImageButton" class='btn btn-danger' data-image_file="${productImageFile}" data-slug="${productSlug}">Delete</button>" `;
             document.getElementById('editProductStockQuantity').value = productStockQuantity;
             document.getElementById('editProductSku').value = productSku;
             document.getElementById('editProductBrand').value = productBrand;
@@ -532,6 +532,25 @@ async function DeleteAndEditProduct() {
                 }
             });
         }
+        document.getElementById("deleteImageButton").addEventListener("click", async function(event) {
+
+            try {
+                event.preventDefault();
+                const productImageFile = event.target.getAttribute("data-image_file");
+                console.log(productImageFile);
+
+                const response  = await fetch(`/AdminPanel/Files/` + productImageFile , {
+                    method:"DELETE"
+                });
+                const data = await response.json();
+                FetchProducts();
+                FlashMessage(data.message,'success');
+            }
+            catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the image: ' + error.message);
+            }
+        });
     });
 }
 
@@ -549,7 +568,7 @@ async function FetchUsers() {
                         <td>${item.userName}</td>
                         <td>${item.email}</td>
                         <td>${item.phoneNumber}</td>
-                        <td>${item.profilePicture}</td>
+                        <td><img src="/static/images/uploads/${item.profilePicture}" alt="Profile Picture" width="50" height="50"></td>
                         <td>${item.created_at}</td>
                         <td>${item.updated_at}</td>
                         <td>                    
@@ -672,5 +691,86 @@ async function fetchInfo(url, listId, type) {
     } catch (error) {
         console.error('Error fetching data:', error);
     }
+}
+
+
+async function OrderAndAddToCart(){
+
+    document.getElementById('addToCartButton').addEventListener('click', async function(event) {
+
+        event.preventDefault();
+        productSlug = event.target.getAttribute('data-slug');
+
+        try {
+
+            const response = await fetch('/HomePage/Cart/OPS/' + productSlug, {
+                    method: 'POST'
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            FlashMessage(data.message,'success')
+
+        }
+
+        catch (error) {
+
+            console.error('Error:', error);
+            alert('An error occurred while adding the product to the cart: ' + error.message);
+
+        }
+    
+    });
+
+}
+
+
+async function FetchCart(){
+    document.getElementById('cartItems').innerHTML = '';
+    let response = await fetch('/HomePage/Cart/OPS');
+    let data = await response.json();
+    data.forEach(item => {
+        let row = document.createElement('tr');
+        row.innerHTML = `<td> <a href="/HomePage/Products?slug=${item.productSlug}">${item.productName}</a></td>
+                        <td>${item.productPrice}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.total_price}</td>
+                        <td>
+                        <button class="btn btn-danger btn-sm deleteButton" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" 
+                        data-slug="${item.productSlug}">Delete</button>
+                        </td>`;
+        document.getElementById('cartItems').appendChild(row);
+    });
+}
+
+async function DeleteCartItem(){
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('deleteButton')) {
+            document.getElementById('deleteCartForm').setAttribute('data-slug', event.target.getAttribute('data-slug'));
+        }
+    });
+    document.getElementById('deleteCartForm').addEventListener('submit', async function(event) {
+        try {
+            event.preventDefault();
+            const slug = event.target.getAttribute('data-slug');
+            const response = await fetch('/HomePage/Cart/OPS/' + slug, {
+                method: 'DELETE'
+            });
+            const data = await response.json();
+            FlashMessage(data.message,'success');
+
+            const deleteCartForm = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+            deleteCartForm.hide();
+            
+            FetchCart();
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the product from the cart: ' + error.message);
+        }
+    });
+
 }
 

@@ -8,10 +8,8 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 import os
 from functools import wraps
-from Functions import login_required_user, login_required_admin , validate, create_app, allowed_file
-from models import db, Users, Admins, Orders, Products, Categories, Reviews, ShippingDetails, Wishlists, Sales, ProductAttributes
-from werkzeug.utils import secure_filename
-import os
+from Functions import login_required_user, login_required_admin, validate, create_app, allowed_file
+from models import db, Users, Admins, Orders, Products, Categories, Reviews, ShippingDetails, Wishlists, Sales, ProductAttributes, Carts
 from PIL import Image
 
 app = create_app()
@@ -21,7 +19,10 @@ api = Api(app)
 class FileManager(Resource):
     @login_required_admin
     def post(self):
-        return self.upload_file(request.files.get('file'))
+        image_file = request.files.get('file')
+        if image_file:
+            return self.upload_file(image_file)
+        return {"message": "No image file provided"}, 400
     
     @login_required_admin
     def delete(self, filename):
@@ -30,13 +31,10 @@ class FileManager(Resource):
     @staticmethod
     def upload_file(image_file):
         try:
-            if image_file:
-                image_filename = secure_filename(image_file.filename)
-                image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-                image_file.save(image_path)
-                return {"message": "Image uploaded successfully", "image_file": image_filename}, 200
-            else:
-                return {"message": "No image file provided"}, 400
+            image_filename = secure_filename(image_file.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+            image_file.save(image_path)
+            return {"message": "Image uploaded successfully", "image_file": image_filename}, 200
         except Exception as e:
             return {"error": str(e)}, 500
 
@@ -46,7 +44,6 @@ class FileManager(Resource):
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             if not os.path.exists(file_path):
                 return {"message": "Image not found"}, 404
-            
             os.remove(file_path)
             return {"message": "Image deleted successfully"}, 200
         except Exception as e:
@@ -182,7 +179,7 @@ class AdminProducts(Resource):
                 new_image_file = request.files.get('image_file')
 
                 if new_image_file:
-                    if product.image_file and product.image_file != 'default.jpg':
+                    if not (product.image_file == 'default.jpg') :
                         FileManager.delete_file(product.image_file)
 
                     upload_result, status_code = FileManager.upload_file(new_image_file)
@@ -190,8 +187,6 @@ class AdminProducts(Resource):
                         product.image_file = upload_result["image_file"]
                     else:
                         return make_response(jsonify({"error": upload_result["message"]}), status_code)
-                elif not product.image_file:
-                    product.image_file = 'default.jpg'
 
                 db.session.commit()
                 return make_response(jsonify({"message": "Product updated successfully"}), 200)
@@ -218,13 +213,26 @@ class AdminCategories(Resource):
     def post(self):
         try:
             data = request.form
+
+            image_file = request.files.get('image_file')
+            image_filename = 'default.jpg'
+            
+            if image_file:
+                upload_result, status_code = FileManager.upload_file(image_file)
+                if status_code == 200:
+                    image_filename = upload_result["image_file"]
+                else:
+                    return make_response(jsonify({"error": upload_result["message"]}), status_code)
+            
+            if not data.get('name') or not data.get('description') or not data.get('slug'):
+                return make_response(jsonify({"error": "All fields are required"}), 400)
+            
             new_category = Categories(
                 name=data.get('name'),
                 description=data.get('description'),
-                image_file=data.get('image_file', 'default.jpg'),
+                image_file=image_filename,
                 slug=data.get('slug')
             )
-            
             db.session.add(new_category)
             db.session.commit()
             
@@ -241,9 +249,21 @@ class AdminCategories(Resource):
             if category:
                 category.name = data.get('name')
                 category.description = data.get('description')
-                category.image_file = data.get('image_file', 'default.jpg')
                 category.slug = data.get('slug')
                 category.updated_at = datetime.utcnow()
+                new_image_file = request.files.get('image_file')
+                
+                if new_image_file:
+                    if category.image_file and category.image_file != 'default.jpg':
+                        FileManager.delete_file(category.image_file)
+                    upload_result, status_code = FileManager.upload_file(new_image_file)
+                    if status_code == 200:
+                        category.image_file = upload_result["image_file"]
+                    else:
+                        return make_response(jsonify({"error": upload_result["message"]}), status_code)
+                else:
+                    category.image_file = 'default.jpg'
+                    
                 db.session.commit()
                 return make_response(jsonify({"message": "Category updated successfully"}), 200)
             else:
@@ -256,6 +276,12 @@ class AdminCategories(Resource):
         try:
             category = Categories.query.filter_by(slug=slug).first()
             if category:
+                image_file = category.image_file
+                if image_file and image_file != 'default.jpg':
+                    delete_result, status_code = FileManager.delete_file(image_file)
+                    if status_code != 200:
+                        return make_response(jsonify({"error": delete_result["message"]}), status_code)
+                    
                 db.session.delete(category)
                 db.session.commit()
                 return make_response(jsonify({"message": "Category deleted successfully"}), 200)
@@ -367,7 +393,58 @@ class UserProducts(Resource):
             return make_response(jsonify(products_list), 200)
         except Exception as e:
             return make_response(jsonify({"error": str(e)}), 500)
+        
+class UsersCart(Resource):
+    def post(self,slug):
+        userId = session.get("userId")
+        product = Products.query.filter_by(slug=slug).first()
+        if product:
+            cart = Carts(user_id=userId, product_id=product.id, quantity=1,added_at=datetime.now())
+            db.session.add(cart)
+            db.session.commit()
+            return make_response(jsonify({"message": "Product added to cart"}), 200)
+        else:
+            return make_response(jsonify({"error": "Product not found"}), 404)
+        
+    def get(self):
+        user_id = session.get("userId")
+        
+        # Aggregate quantities and group by product_id
+        cart_aggregates = db.session.query(
+            Carts.product_id,
+            func.sum(Carts.quantity).label('total_quantity')
+        ).filter_by(user_id=user_id).group_by(Carts.product_id).all()
+        
+        result = []
+        for aggregate in cart_aggregates:
+            product = Products.query.filter_by(id=aggregate.product_id).first()
+            if product:
+                cart_dict = {
+                    'productName': product.name,
+                    'productPrice': product.price,
+                    'productSlug': product.slug,
+                    'quantity': aggregate.total_quantity,
+                    'total_price': product.price * aggregate.total_quantity
+                }
+                result.append(cart_dict)
 
+        return make_response(jsonify(result), 200)
+    
+    def delete(self,slug):
+        user_id = session.get("userId")
+        product = Products.query.filter_by(slug=slug).first()
+        if product:
+            carts = Carts.query.filter_by(user_id=user_id, product_id=product.id).all()
+            if carts:
+
+                for cart in carts:
+                    db.session.delete(cart)
+                    db.session.commit()
+                return make_response(jsonify({"message": "Product removed from cart"}), 200)
+            else:
+                return make_response(jsonify({"error": "Product not found in cart"}), 404)
+        else:
+            return make_response(jsonify({"error": "Product not found"}), 404)
     
 
 api.add_resource(AdminCategories, '/AdminPanel/Categories/OPS', '/AdminPanel/Categories/OPS/<string:slug>')
@@ -376,7 +453,8 @@ api.add_resource(AdminDashboard, '/AdminPanel/Dashboard/Stats')
 api.add_resource(AdminProducts, '/AdminPanel/Products/OPS', '/AdminPanel/Products/OPS/<string:slug>')
 api.add_resource(UserCategories, '/HomePage/OPS/Categories')
 api.add_resource(UserProducts, '/HomePage/OPS/Products') 
-api.add_resource(FileManager, '/AdminPanel/Files')   
+api.add_resource(FileManager, '/AdminPanel/Files', '/AdminPanel/Files/<string:filename>')  
+api.add_resource(UsersCart, '/HomePage/Cart/OPS', '/HomePage/Cart/OPS/<string:slug>') 
       
 @app.route("/", methods=["GET"])
 
@@ -461,134 +539,83 @@ def AdminsSearch():
 # Route for user sign-up
 
 @app.route("/SignUp", methods=["GET", "POST"])
-
 def SignUp():
-
     if request.method == "POST":
-
-        # Retrieve form data
-
         username = request.form.get("username")
-
         password = request.form.get("password")
-
         confirmation = request.form.get("confirmation")
-
         email = request.form.get("email")
-
         phoneNumber = request.form.get("phoneNumber")
 
+        try:
+            # Check if username already exists
+            if Users.query.filter_by(userName=username).first():
+                flash("Username already exists", "error")
+                return redirect("/SignUp")
 
-        # Check if username already exists
+            # Validate email format
+            if not validate(email):
+                flash("Invalid email format", "error")
+                return redirect("/SignUp")
 
-        if Users.query.filter_by(userName = username).first():
+            # Check if email already exists
+            if Users.query.filter_by(email=email).first():
+                flash("Email already exists", "error")
+                return redirect("/SignUp")
 
-            flash("Username already exists", "error")
+            # Check if passwords match
+            if password != confirmation:
+                flash("Passwords don't match", "error")
+                return redirect("/SignUp")
 
+            # Check password length
+            if len(password) < 8:
+                flash("Password must be at least 8 characters long", "error")
+                return redirect("/SignUp")
+
+            # Check phone number length
+            if len(phoneNumber) > 16:
+                flash("Phone number must be no more than 16 characters long", "error")
+                return redirect("/SignUp")
+
+            # Check if phone number already exists
+            if Users.query.filter_by(phoneNumber=phoneNumber).first():
+                flash("Phone number already exists", "error")
+                return redirect("/SignUp")
+
+            # Hash the password
+            hashedPassword = generate_password_hash(password, method='pbkdf2:sha256')
+
+            # Create a new user
+            newUser = Users(
+                userName=username,
+                email=email,
+                phoneNumber=phoneNumber,
+                password=hashedPassword
+            )
+            db.session.add(newUser)
+            db.session.commit()
+
+            # Set session variables
+            session["userId"] = newUser.id
+            session["admin"] = False
+            session["loggedIn"] = True
+
+            flash("Signed up successfully", "success")
+            return redirect("/HomePage")
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            flash("An error occurred during sign-up. Please try again.", "error")
+            print(f"SQLAlchemyError: {str(e)}")
             return redirect("/SignUp")
 
-
-        # Validate email format
-
-        if not validate(email):
-
-            flash("Invalid email format", "error")
-
+        except Exception as e:
+            flash("An unexpected error occurred. Please try again.", "error")
+            print(f"Exception: {str(e)}")
             return redirect("/SignUp")
 
-
-        # Check if email already exists
-
-        if Users.query.filter_by(email = email).first():
-
-            flash("Email already exists", "error")
-
-            return redirect("/SignUp")
-
-
-        # Check if passwords match
-
-        if password != confirmation:
-
-            flash("Passwords don't match", "error")
-
-            return redirect("/SignUp")
-
-
-        # Check password length
-
-        if len(password) < 8:
-
-            flash("Password must be at least 8 characters long", "error")
-
-            return redirect("/SignUp")
-
-
-        # Check phone number length
-
-        if len(phoneNumber) > 16:
-
-            flash("Phone number must be no more than 16 characters long", "error")
-
-            return redirect("/SignUp")
-
-
-        # Check if phone number already exists
-
-        if Users.query.filter_by(phoneNumber = phoneNumber).first():
-
-            flash("Phone number already exists", "error")
-
-            return redirect("/SignUp")
-
-
-        # Hash the password
-
-        hashedPassword = generate_password_hash(password, method='pbkdf2:sha256')
-
-
-        # Insert new user into the database
-
-        newUser = Users(
-
-            userName=username,
-
-            email=email,
-
-            phoneNumber=phoneNumber,
-
-            password=hashedPassword
-        )
-
-        db.session.add(newUser)
-
-        db.session.commit()
-        
-
-        # Get the user id from the newly created user
-
-        user = Users.query.filter_by(userName = username).first()
-
-        session["userId"] = user.id
-        
-        session["admin"] = False
-
-
-        session["loggedIn"] = True
-
-
-        # Flash success message and redirect to homepage
-
-        flash("Signed up successfully", "success")
-
-        return redirect("/HomePage")
-
-    else:
-
-        # Render the sign-up page
-
-        return render_template("SignUp.html")
-
+    return render_template("SignUp.html")
 
 # Route for user login
 
@@ -784,6 +811,13 @@ def UsersProductsRoute():
         return redirect("/HomePage")
     
     return render_template("UsersProducts.html", product=product.to_dict())
+
+
+@app.route("/HomePage/Cart", methods=["GET", "POST"])
+@login_required_user
+def UsersCartRoute():
+    
+    return render_template("UsersCart.html")
         
 
 

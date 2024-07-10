@@ -9,9 +9,10 @@ class Users(db.Model):
     password = db.Column(db.String(128), nullable=False)
     email = db.Column(db.String(120), nullable=False, unique=True)
     phoneNumber = db.Column(db.String(20), nullable=False)
-    profilePicture = db.Column(db.String(100), nullable=False, default='default.png')
+    profilePicture = db.Column(db.String(100), nullable=False, default='default.jpg')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    carts = db.relationship('Carts', backref='user', lazy=True)
     orders = db.relationship('Orders', backref='user', lazy=True)
     reviews = db.relationship('Reviews', backref='user', lazy=True)
     wishlists = db.relationship('Wishlists', backref='user', lazy=True)
@@ -22,8 +23,13 @@ class Users(db.Model):
             'userName': self.userName,
             'email': self.email,
             'phoneNumber': self.phoneNumber,
+            'profilePicture': self.profilePicture,
             'created_at': self.created_at,
-            'updated_at': self.updated_at
+            'updated_at': self.updated_at,
+            'orders': [order.to_dict() for order in self.orders],
+            'reviews': [review.to_dict() for review in self.reviews],
+            'wishlists': [wishlist.to_dict() for wishlist in self.wishlists],
+            'carts': [cart.to_dict() for cart in self.carts]
         }
 
 
@@ -89,6 +95,8 @@ class Products(db.Model):
     attributes = db.relationship('ProductAttributes', backref='product', lazy=True)
     date_added = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     date_modified = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    carts = db.relationship('Carts', backref='product', lazy=True)
+
 
     def to_dict(self):
         return {
@@ -115,6 +123,7 @@ class Products(db.Model):
             'rating': self.rating,
             'reviews': [review.to_dict() for review in self.reviews],
             'attributes': [attribute.to_dict() for attribute in self.attributes],
+            'carts': [cart.to_dict() for cart in self.carts],
             'date_added': self.date_added,
             'date_modified': self.date_modified
         }
@@ -239,4 +248,21 @@ class ShippingDetails(db.Model):
             'shipped_date': self.shipped_date,
             'expected_delivery_date': self.expected_delivery_date,
             'delivery_status': self.delivery_status
+        }
+
+
+class Carts(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    added_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'product_id': self.product_id,
+            'quantity': self.quantity,
+            'added_at': self.added_at
         }

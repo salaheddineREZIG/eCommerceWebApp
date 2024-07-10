@@ -670,7 +670,7 @@ def LogIn():
 
         # Render the login page
 
-        return render_template("LogIn.html")
+        return render_template("Login.html")
 
 
 # Route for user logout

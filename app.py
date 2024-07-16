@@ -825,6 +825,7 @@ def UsersCartRoute():
 
 if __name__ == "__main__":
     with app.app_context():
+        db.drop_all()
         db.create_all()
         admin = Admins.query.filter_by(userName="admin").first()
         if not admin:
@@ -834,5 +835,5 @@ if __name__ == "__main__":
             )
             db.session.add(admin)
             db.session.commit()
-    app.run(debug=True)
+    app.run()
 

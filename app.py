@@ -15,12 +15,6 @@ from PIL import Image
 app = create_app()
 api = Api(app)
 
-@app.before_first_request
-def drop_tables():
-    if app.config.get('DROP_TABLES'):
-        db.drop_all()
-        print("All tables dropped.")
-
 
 class FileManager(Resource):
     @login_required_admin
@@ -830,7 +824,6 @@ def UsersCartRoute():
 
 
 if __name__ == "__main__":
-    app.config['DROP_TABLES'] = True
     with app.app_context():
         db.drop_all()
         db.create_all()

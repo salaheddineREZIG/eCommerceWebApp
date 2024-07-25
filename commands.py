@@ -2,7 +2,7 @@ from app import db
 
 def drop_tables():
     
-    db.drop_all()
+    db.create_all()
     print("All tables dropped.")
 
 if __name__ == "__main__":

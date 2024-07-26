@@ -1,0 +1,10 @@
+to add:
+    1- add an if statement to check if theres products or categories or ... if not hide the table and display "no products or categories"
+
+
+
+
+fixes:
+    1- categories and products images seems funcky and not polished
+    2- the search bar only works on the dashboard 
+    3- the search bar in the home page is not working

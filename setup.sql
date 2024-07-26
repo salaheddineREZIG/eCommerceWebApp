@@ -1,1 +1,1 @@
-SELECT * FROM Carts;
+SELECT * FROM users;

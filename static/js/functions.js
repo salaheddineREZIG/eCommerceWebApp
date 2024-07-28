@@ -50,7 +50,7 @@ async function AdminSearchBar() {
     });
 }
 
-function FlashMessage(message,type){
+function flashMessage(message,type){
     const flashMessage = document.getElementById('flashMessage');
     flashMessage.innerHTML = `<div class="alert  alert-` + type +` alert-dismissible fade show" role="alert">`+ message + `<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
 
@@ -119,17 +119,17 @@ async function fetchStats() {
     }
 }
 
-async function FetchCategories() {
+async function fetchCategories() {
     try {
-        let response = await fetch('/AdminPanel/Categories/OPS', { method: 'GET' });
+        const response = await fetch('/AdminPanel/Categories/OPS');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-        let data = await response.json();
+        
+        const data = await response.json();
         const table = document.getElementById('categoriesTableBody');
-        table.innerHTML = ''; // Clear existing table rows if any
+        table.innerHTML = '';
 
         data.forEach(item => {
-            let row = document.createElement('tr');
+            const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${item.id}</td>
                 <td>${item.name}</td>
@@ -139,27 +139,32 @@ async function FetchCategories() {
                 <td>${new Date(item.created_at).toLocaleString()}</td>
                 <td>${new Date(item.updated_at).toLocaleString()}</td>
                 <td>
-                    <button class="btn btn-warning btn-sm editButton" data-bs-toggle="modal" data-bs-target="#editCategoryModal" 
+                    <button class="btn btn-warning btn-sm editButton" data-bs-toggle="modal" data-bs-target="#editCategoryModal"
                             data-name="${item.name}" data-description="${item.description}" data-image="${item.image_file}" data-slug="${item.slug}">Edit</button>
-                    <button class="btn btn-danger btn-sm deleteButton" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" 
+                    <button class="btn btn-danger btn-sm deleteButton" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal"
                             data-slug="${item.slug}">Delete</button>
                 </td>`;
             table.appendChild(row);
         });
+    
     } catch (error) {
         console.error('Error fetching categories:', error);
-
-        let errorDiv = document.getElementById("error");
-        if (errorDiv) {
-            errorDiv.innerHTML = `<div class="alert alert-danger" role="alert">Error fetching categories: ${error.message}</div>`;
-        }
+        displayError(`Error fetching categories: ${error.message}`);
     }
 }
 
-async function AddCategory() {
+
+function displayError(message) {
+    const errorDiv = document.getElementById("error");
+    if (errorDiv) {
+        errorDiv.innerHTML = `<div class="alert alert-danger" role="alert">${message}</div>`;
+    }
+}
+
+async function addCategory() {
     const form = document.getElementById("addCategoryForm");
     form.addEventListener("submit", async function(event) {
-        event.preventDefault(); // Prevent default form submission
+        event.preventDefault();
 
         const formData = new FormData(form);
 
@@ -173,115 +178,137 @@ async function AddCategory() {
 
             const data = await response.json();
 
-            // Check if the server responded with an error
             if (data.error) throw new Error(data.error);
 
-            FlashMessage(data.message,'success')
+            flashMessage(data.message, 'success');
 
-            // Hide the modal
             const addCategoryModal = bootstrap.Modal.getInstance(document.getElementById('addCategoryModal'));
             addCategoryModal.hide();
-
-            // Reset the form
             form.reset();
-
-            // Refresh the categories list
-            FetchCategories();
-
+            fetchCategories();
         } catch (error) {
-            console.error('Error:', error);            
+            console.error('Error:', error);
             alert(`An error occurred while adding the category: ${error.message}`);
         }
     });
 }
 
-async function DeleteAndEditCategory() {
+async function deleteAndEditCategory() {
     document.getElementById('categoriesTableBody').addEventListener('click', function(event) {
-        if (event.target.classList.contains('editButton')) {
-            const editButton = event.target;
-            const categoryName = editButton.getAttribute('data-name');
-            const categoryDescription = editButton.getAttribute('data-description');
-            const categoryImage = editButton.getAttribute('data-image');
-            const categorySlug = editButton.getAttribute('data-slug');
-
-            const editForm = document.getElementById('editCategoryForm');
-            editForm.setAttribute('data-slug', categorySlug);
-
-            // Populate the edit form with the category data
-            document.getElementById('editName').value = categoryName;
-            document.getElementById('editDescription').value = categoryDescription;
-            document.getElementById('editSlug').value = categorySlug;
-            document.getElementById('editCategoryImageFileSpan').innerHTML = `Image File: ` + categoryImage +`<button id="deleteImageButton" class='btn btn-danger'>Delete</button>" `;
-        } 
-        else if (event.target.classList.contains('deleteButton')) {
-            const categorySlug = event.target.getAttribute('data-slug');
-            const deleteForm = document.getElementById('deleteCategoryForm');
-            deleteForm.setAttribute('data-slug', categorySlug);
+        const target = event.target;
+        
+        if (target.classList.contains('editButton')) {
+            handleEditButtonClick(target);
+        } else if (target.classList.contains('deleteButton')) {
+            handleDeleteButtonClick(target);
         }
     });
 
     document.getElementById('deleteCategoryForm').addEventListener('submit', async function(event) {
-        event.preventDefault(); // Prevent default form submission
-
-        const categorySlug = event.target.getAttribute('data-slug');
-
+        event.preventDefault();
+        const slug = event.target.getAttribute('data-slug'); // Retrieve the slug from the form's attribute
         try {
-            const response = await fetch(`/AdminPanel/Categories/OPS/`+ categorySlug, {
+            const response = await fetch(`/AdminPanel/Categories/OPS/${slug}`, {
                 method: 'DELETE'
             });
-
-            if (!response.ok) {
-                throw new Error(`Failed to delete category. Status: ${response.status}`);
-            }
-
+    
+            if (!response.ok) throw new Error(`Failed to delete category. Status: ${response.status}`);
             const data = await response.json();
-
-            FlashMessage(data.message,'success')
-
-            // Hide the modal
             const deleteCategoryModal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
             deleteCategoryModal.hide();
-
-            FetchCategories(); // Refresh the categories list
+            
+            flashMessage(data.message, 'success');
+            fetchCategories();
         } catch (error) {
             console.error('Error:', error);
             alert(`An error occurred while deleting the category: ${error.message}`);
         }
     });
-
-    const editForm = document.getElementById('editCategoryForm');
-
-    editForm.addEventListener('submit', async function(event) {
+    ;
+    
+    document.getElementById('editCategoryForm').addEventListener('submit', async function(event) {
         event.preventDefault();
-
+        const editForm = document.getElementById('editCategoryForm');
         const formData = new FormData(editForm);
 
         try {
             const categorySlug = editForm.getAttribute('data-slug');
-
-            const response = await fetch(`/AdminPanel/Categories/OPS/`+ categorySlug, {
+            const response = await fetch(`/AdminPanel/Categories/OPS/${categorySlug}`, {
                 method: 'PUT',
                 body: formData
             });
 
-            if (!response.ok) {
-                throw new Error(`Failed to update category. Status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`Failed to update category. Status: ${response.status}`);
 
             const data = await response.json();
+            flashMessage(data.message, 'success');
 
-            FlashMessage(data.message,'success')
-
-            // Hide the modal
             const editCategoryModal = bootstrap.Modal.getInstance(document.getElementById('editCategoryModal'));
             editCategoryModal.hide();
 
-            FetchCategories(); // Refresh the categories list
+            fetchCategories();
         } catch (error) {
             console.error('Error:', error);
             alert(`An error occurred while updating the category: ${error.message}`);
         }
     });
+
+    document.getElementById("deleteCategoryImageButton").addEventListener("click", async function(event) {
+        event.preventDefault();
+        console.log("clicked");
+        try {
+            const imageFile = event.target.getAttribute("data-image_file");
+            const slug = event.target.getAttribute("data-slug");
+
+            if (!imageFile) throw new Error("No image file selected");
+
+            if (!slug) throw new Error("No slug provided");
+
+
+            const response = await fetch(`/AdminPanel/Files/${imageFile}?slug=${slug}&type=category`, {
+                method: 'DELETE'
+            });
+    
+            if (!response.ok) throw new Error(`Failed to delete image. Status: ${response.status}`);
+    
+            const data = await response.json();
+            fetchCategories();
+            flashMessage(data.message, 'success');
+
+            const deleteCategoryModal = bootstrap.Modal.getInstance(document.getElementById('editCategoryModal'));
+            deleteCategoryModal.hide();
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the image: ' + error.message);
+        }
+    });
+}
+
+function handleEditButtonClick(editButton) {
+    const categoryName = editButton.getAttribute('data-name');
+    const categoryDescription = editButton.getAttribute('data-description');
+    const categoryImage = editButton.getAttribute('data-image');
+    const categorySlug = editButton.getAttribute('data-slug');
+    const editForm = document.getElementById('editCategoryForm');
+
+    editForm.setAttribute('data-slug', categorySlug);
+    document.getElementById('editName').value = categoryName;
+    document.getElementById('editDescription').value = categoryDescription;
+    document.getElementById('editSlug').value = categorySlug;
+    document.getElementById('editCategoryImageFileSpan').innerHTML = `Image File: ${categoryImage}`;
+
+    const deleteButton = document.getElementById('deleteCategoryImageButton');
+    if (categoryImage !== 'default.jpg') {
+        deleteButton.removeAttribute('disabled');
+    }
+    deleteButton.setAttribute('data-slug', categorySlug);
+    deleteButton.setAttribute('data-image_file', categoryImage);
+}
+
+function handleDeleteButtonClick(deleteButton) {
+    const categorySlug = deleteButton.getAttribute('data-slug');
+    const deleteForm = document.getElementById('deleteCategoryForm');
+    deleteForm.setAttribute('data-slug', categorySlug); // Correctly set the slug here
 }
 
 async function FetchProducts() {
@@ -409,7 +436,7 @@ async function AddProduct() {
 
             const data = await response.json();
 
-            FlashMessage(data.message,'success')
+            flashMessage(data.message,'success')
 
             // Clear the form
             form.reset();
@@ -459,7 +486,7 @@ async function DeleteAndEditProduct() {
             document.getElementById('editProductSlug').value = productSlug;
             document.getElementById('editProductPrice').value = productPrice;
             document.getElementById('editCategoryId').value = productCategoryId; 
-            document.getElementById('editProductImageFileSpan').innerHTML = `Image File: ` + productImageFile +`<button id="deleteImageButton" class='btn btn-danger' data-image_file="${productImageFile}" data-slug="${productSlug}">Delete</button>" `;
+            document.getElementById('editProductImageFileSpan').innerHTML = `Image File: ` + productImageFile +`<button id="deleteProductImageButton" class='btn btn-danger' data-image_file="${productImageFile}" data-slug="${productSlug}">Delete</button>" `;
             document.getElementById('editProductStockQuantity').value = productStockQuantity;
             document.getElementById('editProductSku').value = productSku;
             document.getElementById('editProductBrand').value = productBrand;
@@ -491,7 +518,7 @@ async function DeleteAndEditProduct() {
 
                     const data = await response.json();
 
-                    FlashMessage(data.message,'success')
+                    flashMessage(data.message,'success')
 
                     // Hide the modal
                     const editProductModal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
@@ -522,7 +549,7 @@ async function DeleteAndEditProduct() {
 
                     const data = await response.json();
 
-                    FlashMessage(data.message,'success')
+                    flashMessage(data.message,'success')
 
                     FetchProducts(); // Refresh the product list
 
@@ -532,19 +559,18 @@ async function DeleteAndEditProduct() {
                 }
             });
         }
-        document.getElementById("deleteImageButton").addEventListener("click", async function(event) {
+        document.getElementById("deleteProductImageButton").addEventListener("click", async function(event) {
 
             try {
                 event.preventDefault();
                 const productImageFile = event.target.getAttribute("data-image_file");
-                console.log(productImageFile);
-
-                const response  = await fetch(`/AdminPanel/Files/` + productImageFile , {
+                const productSlug = event.target.getAttribute("data-slug");
+                const response  = await fetch(`/AdminPanel/Files/` + productImageFile + `?slug=` + productSlug + `&type=product`, {
                     method:"DELETE"
                 });
                 const data = await response.json();
                 FetchProducts();
-                FlashMessage(data.message,'success');
+                flashMessage(data.message,'success');
             }
             catch (error) {
                 console.error('Error:', error);
@@ -562,7 +588,6 @@ async function FetchUsers() {
     const table = document.getElementById('usersTableBody');
     table.innerHTML = ''; // Clear existing table rows if any
     data.forEach(item => {
-        console.log(item);
         let row = document.createElement('tr');
         row.innerHTML = `<td>${item.id}</td>
                         <td>${item.userName}</td>
@@ -586,7 +611,6 @@ async function DeleteUser()
             const deleteButton = event.target;
             const userId = deleteButton.getAttribute('data-id');
             const userName = deleteButton.getAttribute('data-username');
-            console.log(userName, userId, deleteButton);
             document.getElementById('userInfo').innerHTML = 'User Name: ' + userName ;
             
             document.getElementById('deleteUserForm').addEventListener('submit', async function(event) {
@@ -595,14 +619,13 @@ async function DeleteUser()
                     const response = await fetch(`/AdminPanel/Users/OPS/` + userId , {
                         method: 'DELETE'
                     });
-                    console.log(response);
 
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     
                     const data = await response.json();
-                    FlashMessage(data.message,'success')
+                    flashMessage(data.message,'success')
                     
                     FetchUsers(); 
 
@@ -623,7 +646,6 @@ async function FetchOrders()
     const table = document.getElementById('ordersTableBody');
     table.innerHTML = ''; // Clear existing table rows if any
     data.forEach(item => {
-        console.log(item);
         let row = document.createElement('tr');
         row.innerHTML = `<td>${item.id}</td>
                         <td>${item.userId}</td>
@@ -712,7 +734,7 @@ async function OrderAndAddToCart(){
             }
 
             const data = await response.json();
-            FlashMessage(data.message,'success')
+            flashMessage(data.message,'success')
 
         }
 
@@ -760,7 +782,7 @@ async function DeleteCartItem(){
                 method: 'DELETE'
             });
             const data = await response.json();
-            FlashMessage(data.message,'success');
+            flashMessage(data.message,'success');
 
             const deleteCartForm = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
             deleteCartForm.hide();

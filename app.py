@@ -11,6 +11,8 @@ from functools import wraps
 from Functions import login_required_user, login_required_admin, validate, create_app, allowed_file
 from models import db, Users, Admins, Orders, Products, Categories, Reviews, ShippingDetails, Wishlists, Sales, ProductAttributes, Carts
 from PIL import Image
+import uuid
+
 
 app = create_app()
 api = Api(app)
@@ -26,30 +28,48 @@ class FileManager(Resource):
     
     @login_required_admin
     def delete(self, filename):
-        return self.delete_file(filename)
+        slug = request.args.get('slug')
+        entity_type = request.args.get('type')
+        return self.delete_file(filename, slug, entity_type)
 
     @staticmethod
     def upload_file(image_file):
         try:
-            image_filename = secure_filename(image_file.filename)
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+            original_filename = secure_filename(image_file.filename)
+            file_extension = os.path.splitext(original_filename)[1]
+            unique_filename = str(uuid.uuid4()) + file_extension            
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             image_file.save(image_path)
-            return {"message": "Image uploaded successfully", "image_file": image_filename}, 200
+            return {"message": "Image uploaded successfully", "image_file": unique_filename , "status_code": 200}
         except Exception as e:
-            return {"error": str(e)}, 500
+            return {"error": str(e), "status_code": 500}
 
     @staticmethod
-    def delete_file(filename):
+    def delete_file(filename, slug, entity_type):
         try:
+            if filename == 'default.jpg':
+                return {"message": "Default image cannot be deleted", "status_code": 400}
+            
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             if not os.path.exists(file_path):
-                return {"message": "Image not found"}, 404
+                return {"message": "Image not found", "status_code": 404}
             os.remove(file_path)
-            return {"message": "Image deleted successfully"}, 200
+
+            if entity_type == 'category':
+                category = Categories.query.filter_by(slug=slug).first()
+                if category:
+                    category.image_file = "default.jpg"
+                    db.session.commit()
+            elif entity_type == 'product':
+                product = Products.query.filter_by(slug=slug).first()
+                if product:
+                    product.image_file = "default.jpg"
+                    db.session.commit()
+
+            return {"message": "Image deleted successfully", "status_code": 200}
         except Exception as e:
-            return {"error": str(e)}, 500
-
-
+            return {"message": str(e), "status_code": 500}   
+        
 class AdminProducts(Resource):
     
     @login_required_admin
@@ -141,9 +161,9 @@ class AdminProducts(Resource):
                 image_file = product.image_file
                 
                 if image_file and image_file != 'default.jpg':
-                    delete_result, status_code = FileManager.delete_file(image_file)
-                    if status_code != 200:
-                        return make_response(jsonify({"error": delete_result["message"]}), status_code)
+                    delete_result= FileManager.delete_file(image_file)
+                    if delete_result["status_code"] != 200:
+                        return make_response(jsonify({"error": delete_result["message"]}), delete_result["status_code"])
                     
                 db.session.delete(product)
                 db.session.commit()
@@ -213,19 +233,19 @@ class AdminCategories(Resource):
     def post(self):
         try:
             data = request.form
-
             image_file = request.files.get('image_file')
             image_filename = 'default.jpg'
             
-            if image_file:
-                upload_result, status_code = FileManager.upload_file(image_file)
-                if status_code == 200:
-                    image_filename = upload_result["image_file"]
-                else:
-                    return make_response(jsonify({"error": upload_result["message"]}), status_code)
-            
             if not data.get('name') or not data.get('description') or not data.get('slug'):
                 return make_response(jsonify({"error": "All fields are required"}), 400)
+            
+            if image_file:
+                upload_result = FileManager.upload_file(image_file)
+                if upload_result["status_code"] == 200:
+                    image_filename = upload_result["image_file"]
+                else:
+                    return make_response(jsonify({"error": upload_result["message"]}), upload_result["status_code"])
+            
             
             new_category = Categories(
                 name=data.get('name'),
@@ -237,7 +257,7 @@ class AdminCategories(Resource):
             db.session.commit()
             
             return make_response(jsonify({"message": "Category created successfully"}), 201)
-        except SQLAlchemyError as e:
+        except Exception as e:
             db.session.rollback()
             return make_response(jsonify({"error": str(e)}), 500)
     
@@ -250,26 +270,24 @@ class AdminCategories(Resource):
                 category.name = data.get('name')
                 category.description = data.get('description')
                 category.slug = data.get('slug')
-                category.updated_at = datetime.utcnow()
+                category.updated_at = datetime.now()
                 new_image_file = request.files.get('image_file')
                 
                 if new_image_file:
                     if category.image_file and category.image_file != 'default.jpg':
-                        FileManager.delete_file(category.image_file)
-                    upload_result, status_code = FileManager.upload_file(new_image_file)
-                    if status_code == 200:
+                        FileManager.delete_file(category.image_file, slug, 'category')
+                    upload_result = FileManager.upload_file(new_image_file)
+                    if upload_result["status_code"] == 200:
                         category.image_file = upload_result["image_file"]
                     else:
-                        return make_response(jsonify({"error": upload_result["message"]}), status_code)
-                else:
-                    category.image_file = 'default.jpg'
-                    
+                        return make_response(jsonify({"error": upload_result["message"]}), upload_result["status_code"])
                 db.session.commit()
                 return make_response(jsonify({"message": "Category updated successfully"}), 200)
             else:
                 return make_response(jsonify({"message": "Category not found"}), 404)
-        except SQLAlchemyError as e:
+        except Exception as e:
             return make_response(jsonify({"error": str(e)}), 500)
+    
     
     @login_required_admin
     def delete(self, slug):
@@ -278,16 +296,15 @@ class AdminCategories(Resource):
             if category:
                 image_file = category.image_file
                 if image_file and image_file != 'default.jpg':
-                    delete_result, status_code = FileManager.delete_file(image_file)
-                    if status_code != 200:
-                        return make_response(jsonify({"error": delete_result["message"]}), status_code)
-                    
+                    delete_result = FileManager.delete_file(image_file, slug, 'category')
+                    if delete_result["status_code"] != 200:
+                        return make_response(jsonify({"error": delete_result["message"]}), delete_result["status_code"])
                 db.session.delete(category)
                 db.session.commit()
                 return make_response(jsonify({"message": "Category deleted successfully"}), 200)
             else:
                 return make_response(jsonify({"message": "Category not found"}), 404)
-        except SQLAlchemyError as e:
+        except Exception as e:
             return make_response(jsonify({"error": str(e)}), 500)
 
 # Admin Users Resource
@@ -363,6 +380,7 @@ class AdminDashboard(Resource):
             totalCategories = Categories.query.count()
             totalSales = db.session.query(func.sum(Sales.total_price)).scalar()
             totalRevenue = db.session.query(func.sum(Orders.total_amount)).scalar()
+            adminInfo = Admins.query.filter_by(id=session.get("userId")).first().to_dict()
             
             dashboard_data = {
                 "totalUsers": totalUsers,
@@ -370,7 +388,8 @@ class AdminDashboard(Resource):
                 "totalProducts": totalProducts,
                 "totalCategories": totalCategories,
                 "totalSales": totalSales,
-                "totalRevenue": totalRevenue
+                "totalRevenue": totalRevenue,
+                "adminInfo": adminInfo
             }
             return make_response(jsonify(dashboard_data), 200)
         except SQLAlchemyError as e:
@@ -453,8 +472,8 @@ api.add_resource(AdminDashboard, '/AdminPanel/Dashboard/Stats')
 api.add_resource(AdminProducts, '/AdminPanel/Products/OPS', '/AdminPanel/Products/OPS/<string:slug>')
 api.add_resource(UserCategories, '/HomePage/OPS/Categories')
 api.add_resource(UserProducts, '/HomePage/OPS/Products') 
-api.add_resource(FileManager, '/AdminPanel/Files', '/AdminPanel/Files/<string:filename>')  
-api.add_resource(UsersCart, '/HomePage/Cart/OPS', '/HomePage/Cart/OPS/<string:slug>') 
+api.add_resource(FileManager, '/AdminPanel/Files', '/AdminPanel/Files/<string:filename>')
+api.add_resource(UsersCart, '/HomePage/Cart/OPS', '/HomePage/Cart/OPS/<string:slug>/') 
       
 @app.route("/", methods=["GET"])
 

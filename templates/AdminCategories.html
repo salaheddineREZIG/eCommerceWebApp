@@ -121,6 +121,7 @@
                         <label for="description" class="form-label">Description</label>
                         <textarea class="form-control" name="description" id="editDescription"></textarea>
                     </div>
+                    <button id="deleteCategoryImageButton" type="button" disabled class='btn btn-danger'>Delete</button>
                     <div class="mb-3">
                         <label for="image_file" class="form-label" id="editCategoryImageFileSpan">Image File</label>
                         <input type="file" class="form-control" id="image_file" name="image_file">
@@ -142,14 +143,16 @@
 
 {% block scripts %}
 <script>
+document.addEventListener("DOMContentLoaded", async function()
+{   AdminSearchBar();
 
-AdminSearchBar();
+    fetchCategories(deleteAndEditCategory);
 
-FetchCategories();
+    deleteAndEditCategory();
 
-AddCategory();
+    addCategory();
 
-DeleteAndEditCategory();
-
+    
+});
 </script>
 {% endblock %}

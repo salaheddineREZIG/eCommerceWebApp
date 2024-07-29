@@ -75,3 +75,8 @@ def login_required_admin(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def get_float(value, default=0.0):
+    try:
+        return float(value) if value else default
+    except ValueError:
+        return default

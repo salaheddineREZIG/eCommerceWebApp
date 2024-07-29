@@ -50,15 +50,15 @@ async function AdminSearchBar() {
     });
 }
 
-function flashMessage(message,type){
-    const flashMessage = document.getElementById('flashMessage');
-    flashMessage.innerHTML = `<div class="alert  alert-` + type +` alert-dismissible fade show" role="alert">`+ message + `<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
+function FlashMessage(message,type){
+    const FlashMessage = document.getElementById('flashMessage');
+    FlashMessage.innerHTML = `<div class="alert  alert-` + type +` alert-dismissible fade show" role="alert">`+ message + `<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`;
 
 }
 
 
 
-async function fetchStats() {
+async function FetchStats() {
     try {
         let response = await fetch("/AdminPanel/Dashboard/Stats");
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -119,7 +119,7 @@ async function fetchStats() {
     }
 }
 
-async function fetchCategories() {
+async function FetchCategories() {
     try {
         const response = await fetch('/AdminPanel/Categories/OPS');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -149,19 +149,19 @@ async function fetchCategories() {
     
     } catch (error) {
         console.error('Error fetching categories:', error);
-        displayError(`Error fetching categories: ${error.message}`);
+        DisplayError(`Error fetching categories: ${error.message}`);
     }
 }
 
 
-function displayError(message) {
+function DisplayError(message) {
     const errorDiv = document.getElementById("error");
     if (errorDiv) {
         errorDiv.innerHTML = `<div class="alert alert-danger" role="alert">${message}</div>`;
     }
 }
 
-async function addCategory() {
+async function AddCategory() {
     const form = document.getElementById("addCategoryForm");
     form.addEventListener("submit", async function(event) {
         event.preventDefault();
@@ -169,10 +169,17 @@ async function addCategory() {
         const formData = new FormData(form);
 
         try {
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true; // Disable submit button to prevent multiple submissions
+            submitButton.innerText = 'Submitting...'; // Indicate submission process
+
             const response = await fetch('/AdminPanel/Categories/OPS', {
                 method: 'POST',
                 body: formData
             });
+
+            submitButton.disabled = false; // Re-enable submit button
+            submitButton.innerText = 'Submit'; // Reset button text
 
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
@@ -180,12 +187,12 @@ async function addCategory() {
 
             if (data.error) throw new Error(data.error);
 
-            flashMessage(data.message, 'success');
+            FlashMessage(data.message, 'success');
 
             const addCategoryModal = bootstrap.Modal.getInstance(document.getElementById('addCategoryModal'));
             addCategoryModal.hide();
             form.reset();
-            fetchCategories();
+            FetchCategories();
         } catch (error) {
             console.error('Error:', error);
             alert(`An error occurred while adding the category: ${error.message}`);
@@ -193,43 +200,55 @@ async function addCategory() {
     });
 }
 
-async function deleteAndEditCategory() {
+
+async function DeleteAndEditCategory() {
     document.getElementById('categoriesTableBody').addEventListener('click', function(event) {
         const target = event.target;
         
         if (target.classList.contains('editButton')) {
-            handleEditButtonClick(target);
+            HandleEditButtonClick(target);
         } else if (target.classList.contains('deleteButton')) {
-            handleDeleteButtonClick(target);
+            HandleDeleteButtonClick(target);
         }
     });
 
     document.getElementById('deleteCategoryForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         const slug = event.target.getAttribute('data-slug'); // Retrieve the slug from the form's attribute
+
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true; // Disable submit button to prevent multiple submissions
+        submitButton.innerText = 'Deleting...'; // Indicate submission process
+
         try {
             const response = await fetch(`/AdminPanel/Categories/OPS/${slug}`, {
                 method: 'DELETE'
             });
     
+            submitButton.disabled = false; // Re-enable submit button
+            submitButton.innerText = 'Delete'; // Reset button text
+
             if (!response.ok) throw new Error(`Failed to delete category. Status: ${response.status}`);
             const data = await response.json();
             const deleteCategoryModal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
             deleteCategoryModal.hide();
             
-            flashMessage(data.message, 'success');
-            fetchCategories();
+            FlashMessage(data.message, 'success');
+            FetchCategories();
         } catch (error) {
             console.error('Error:', error);
             alert(`An error occurred while deleting the category: ${error.message}`);
         }
     });
-    ;
-    
+
     document.getElementById('editCategoryForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         const editForm = document.getElementById('editCategoryForm');
         const formData = new FormData(editForm);
+
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true; // Disable submit button to prevent multiple submissions
+        submitButton.innerText = 'Updating...'; // Indicate submission process
 
         try {
             const categorySlug = editForm.getAttribute('data-slug');
@@ -238,15 +257,18 @@ async function deleteAndEditCategory() {
                 body: formData
             });
 
+            submitButton.disabled = false; // Re-enable submit button
+            submitButton.innerText = 'Update'; // Reset button text
+
             if (!response.ok) throw new Error(`Failed to update category. Status: ${response.status}`);
 
             const data = await response.json();
-            flashMessage(data.message, 'success');
+            FlashMessage(data.message, 'success');
 
             const editCategoryModal = bootstrap.Modal.getInstance(document.getElementById('editCategoryModal'));
             editCategoryModal.hide();
 
-            fetchCategories();
+            FetchCategories();
         } catch (error) {
             console.error('Error:', error);
             alert(`An error occurred while updating the category: ${error.message}`);
@@ -255,25 +277,30 @@ async function deleteAndEditCategory() {
 
     document.getElementById("deleteCategoryImageButton").addEventListener("click", async function(event) {
         event.preventDefault();
-        console.log("clicked");
+
+        const submitButton = event.target;
+        submitButton.disabled = true; // Disable submit button to prevent multiple submissions
+        submitButton.innerText = 'Deleting...'; // Indicate submission process
+
         try {
             const imageFile = event.target.getAttribute("data-image_file");
             const slug = event.target.getAttribute("data-slug");
 
             if (!imageFile) throw new Error("No image file selected");
-
             if (!slug) throw new Error("No slug provided");
-
 
             const response = await fetch(`/AdminPanel/Files/${imageFile}?slug=${slug}&type=category`, {
                 method: 'DELETE'
             });
     
+            submitButton.disabled = false; // Re-enable submit button
+            submitButton.innerText = 'Delete Image'; // Reset button text
+    
             if (!response.ok) throw new Error(`Failed to delete image. Status: ${response.status}`);
     
             const data = await response.json();
-            fetchCategories();
-            flashMessage(data.message, 'success');
+            FetchCategories();
+            FlashMessage(data.message, 'success');
 
             const deleteCategoryModal = bootstrap.Modal.getInstance(document.getElementById('editCategoryModal'));
             deleteCategoryModal.hide();
@@ -284,7 +311,7 @@ async function deleteAndEditCategory() {
     });
 }
 
-function handleEditButtonClick(editButton) {
+function HandleEditButtonClick(editButton) {
     const categoryName = editButton.getAttribute('data-name');
     const categoryDescription = editButton.getAttribute('data-description');
     const categoryImage = editButton.getAttribute('data-image');
@@ -305,7 +332,7 @@ function handleEditButtonClick(editButton) {
     deleteButton.setAttribute('data-image_file', categoryImage);
 }
 
-function handleDeleteButtonClick(deleteButton) {
+function HandleDeleteButtonClick(deleteButton) {
     const categorySlug = deleteButton.getAttribute('data-slug');
     const deleteForm = document.getElementById('deleteCategoryForm');
     deleteForm.setAttribute('data-slug', categorySlug); // Correctly set the slug here
@@ -316,7 +343,7 @@ async function FetchProducts() {
     table.innerHTML = '<tr><td colspan="23">Loading...</td></tr>'; // Add a loading indicator
 
     try {
-        let response = await fetch('/AdminPanel/Products/OPS', { method: 'GET' });
+        let response = await fetch('/AdminPanel/Products/OPS');
 
         if (!response.ok) {
             throw new Error(`Failed to fetch products. Status: ${response.status}`);
@@ -412,173 +439,232 @@ async function FetchCategoriesSelectMenu(optionId) {
 async function AddProduct() {
     const form = document.getElementById("addProductForm");
     
+    // Ensure the form exists
+    if (!form) {
+        console.error("Form element not found.");
+        return;
+    }
+    
     form.addEventListener("submit", async function(event) {
         event.preventDefault(); // Prevent default form submission
 
+        console.log("Add Product Form Submitted");
+
+        // Disable submit button to prevent multiple submissions
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerText = 'Submitting...';
+
+        // Create FormData object
         const formData = new FormData(form);
+        console.log("Form Data:", formData);
 
         try {
-            const submitButton = form.querySelector('button[type="submit"]');
-            submitButton.disabled = true; // Disable submit button to prevent multiple submissions
-            submitButton.innerText = 'Submitting...'; // Indicate submission process
-
             const response = await fetch('/AdminPanel/Products/OPS', {
                 method: 'POST',
                 body: formData
             });
 
-            submitButton.disabled = false; // Re-enable submit button
-            submitButton.innerText = 'Submit'; // Reset button text
+            console.log("Response:", response);
 
             if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
+                // Extract and throw error details from the response
+                const errorResponse = await response.json();
+                throw new Error(errorResponse.error || `HTTP error! Status: ${response.status}`);
             }
 
             const data = await response.json();
+            console.log("Data:", data);
 
-            flashMessage(data.message,'success')
+            // Show success message
+            FlashMessage(data.message, 'success');
 
-            // Clear the form
-            form.reset();
-
-            // Hide the modal
+            // Hide modal and reset form
             const addProductModal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
             addProductModal.hide();
+            form.reset();
 
-            FetchProducts(); // Refresh the product list
+            // Refresh the product list
+            FetchProducts(); 
 
         } catch (error) {
             console.error('Error:', error);
             alert(`An error occurred while adding the product: ${error.message}`);
+        } finally {
+            // Re-enable submit button and reset text
+            submitButton.disabled = false;
+            submitButton.innerText = 'Submit';
         }
     });
 }
+
 
 
 async function DeleteAndEditProduct() {
-    document.getElementById('productsTableBody').addEventListener('click', async function(event) {
-        if (event.target.classList.contains('editButton')) {
-            const editButton = event.target;
-            const productName = editButton.getAttribute('data-name');
-            const productDescription = editButton.getAttribute('data-description');
-            const productSlug = editButton.getAttribute('data-slug');
-            const productPrice = editButton.getAttribute('data-price');
-            const productCategoryId = editButton.getAttribute('data-category_id');
-            const productImageFile = editButton.getAttribute('data-image_file');
-            const productStockQuantity = editButton.getAttribute('data-stock_quantity');
-            const productSku = editButton.getAttribute('data-sku');
-            const productBrand = editButton.getAttribute('data-brand');
-            const productWeight = editButton.getAttribute('data-weight');
-            const productDimensions = editButton.getAttribute('data-dimensions');
-            const productColor = editButton.getAttribute('data-color');
-            const productSize = editButton.getAttribute('data-size');
-            const productMaterial = editButton.getAttribute('data-material');
-            const productFeatures = editButton.getAttribute('data-features');
-            const productTags = editButton.getAttribute('data-tags');
-            const productDiscountPrice = editButton.getAttribute('data-discount_price');
-            const productAvailabilityStatus = editButton.getAttribute('data-availability_status');
-            
-            document.getElementById('editProductForm').setAttribute('data-slug', productSlug);
+    document.getElementById('productsTableBody').addEventListener('click', function(event) {
+        const target = event.target;
 
-            // Populate the edit form with the product data
-            document.getElementById('editProductName').value = productName;
-            document.getElementById('editProductDescription').value = productDescription;
-            document.getElementById('editProductSlug').value = productSlug;
-            document.getElementById('editProductPrice').value = productPrice;
-            document.getElementById('editCategoryId').value = productCategoryId; 
-            document.getElementById('editProductImageFileSpan').innerHTML = `Image File: ` + productImageFile +`<button id="deleteProductImageButton" class='btn btn-danger' data-image_file="${productImageFile}" data-slug="${productSlug}">Delete</button>" `;
-            document.getElementById('editProductStockQuantity').value = productStockQuantity;
-            document.getElementById('editProductSku').value = productSku;
-            document.getElementById('editProductBrand').value = productBrand;
-            document.getElementById('editProductWeight').value = productWeight;
-            document.getElementById('editProductDimensions').value = productDimensions;
-            document.getElementById('editProductColor').value = productColor;
-            document.getElementById('editProductSize').value = productSize;
-            document.getElementById('editProductMaterial').value = productMaterial;
-            document.getElementById('editProductFeatures').value = productFeatures;
-            document.getElementById('editProductTags').value = productTags;
-            document.getElementById('editProductDiscountPrice').value = productDiscountPrice;
-            document.getElementById('editProductAvailabilityStatus').value = productAvailabilityStatus;
-
-            document.getElementById('editProductForm').addEventListener('submit', async function handleEditFormSubmit(event) {
-                event.preventDefault();
-                const editForm = document.getElementById('editProductForm');
-                const formData = new FormData(editForm);
-                const productSlug = editForm.getAttribute('data-slug');
-
-                try {
-                    const response = await fetch(`/AdminPanel/Products/OPS/`+ productSlug , {
-                        method: 'PUT',
-                        body: formData
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-
-                    flashMessage(data.message,'success')
-
-                    // Hide the modal
-                    const editProductModal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
-                    editProductModal.hide();
-
-                    FetchProducts(); // Refresh the product list
-
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('An error occurred while updating the product: ' + error.message);
-                }
-            }, { once: true }); // Ensure the event listener is only added once
-        } 
-        else if (event.target.classList.contains('deleteButton')) {
-            const deleteButton = event.target;
-            const productSlug = deleteButton.getAttribute('data-slug');
-            
-            document.getElementById('deleteProductForm').addEventListener('submit', async function(event) {
-                
-                try {
-                    const response = await fetch(`/AdminPanel/Products/OPS/` + productSlug , {
-                        method: 'DELETE'
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-
-                    flashMessage(data.message,'success')
-
-                    FetchProducts(); // Refresh the product list
-
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('An error occurred while deleting the product: ' + error.message);
-                }
-            });
+        if (target.classList.contains('editButton')) {
+            HandleEditProductButtonClick(target);
+        } else if (target.classList.contains('deleteButton')) {
+            HandleDeleteProductButtonClick(target);
         }
-        document.getElementById("deleteProductImageButton").addEventListener("click", async function(event) {
+    });
 
-            try {
-                event.preventDefault();
-                const productImageFile = event.target.getAttribute("data-image_file");
-                const productSlug = event.target.getAttribute("data-slug");
-                const response  = await fetch(`/AdminPanel/Files/` + productImageFile + `?slug=` + productSlug + `&type=product`, {
-                    method:"DELETE"
-                });
-                const data = await response.json();
-                FetchProducts();
-                flashMessage(data.message,'success');
-            }
-            catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred while deleting the image: ' + error.message);
-            }
-        });
+    document.getElementById('deleteProductForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const slug = event.target.getAttribute('data-slug');
+
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerText = 'Deleting...';
+
+        try {
+            const response = await fetch(`/AdminPanel/Products/OPS/${slug}`, {
+                method: 'DELETE'
+            });
+
+            submitButton.disabled = false;
+            submitButton.innerText = 'Delete';
+
+            if (!response.ok) throw new Error(`Failed to delete product. Status: ${response.status}`);
+            const data = await response.json();
+            const deleteProductModal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+            deleteProductModal.hide();
+
+            FlashMessage(data.message, 'success');
+            FetchProducts();
+        } catch (error) {
+            console.error('Error:', error);
+            alert(`An error occurred while deleting the product: ${error.message}`);
+        }
+    });
+
+    document.getElementById('editProductForm').addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const editForm = document.getElementById('editProductForm');
+        const formData = new FormData(editForm);
+
+        const submitButton = event.target.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.innerText = 'Updating...';
+
+        try {
+            const productSlug = editForm.getAttribute('data-slug');
+            const response = await fetch(`/AdminPanel/Products/OPS/${productSlug}`, {
+                method: 'PUT',
+                body: formData
+            });
+
+            submitButton.disabled = false;
+            submitButton.innerText = 'Update';
+
+            if (!response.ok) throw new Error(`Failed to update product. Status: ${response.status}`);
+
+            const data = await response.json();
+            FlashMessage(data.message, 'success');
+
+            const editProductModal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+            editProductModal.hide();
+
+            FetchProducts();
+        } catch (error) {
+            console.error('Error:', error);
+            alert(`An error occurred while updating the product: ${error.message}`);
+        }
+    });
+
+    document.getElementById("deleteProductImageButton").addEventListener("click", async function(event) {
+        event.preventDefault();
+
+        const submitButton = event.target;
+        submitButton.disabled = true;
+        submitButton.innerText = 'Deleting...';
+
+        try {
+            const imageFile = event.target.getAttribute("data-image_file");
+            const slug = event.target.getAttribute("data-slug");
+
+            if (!imageFile) throw new Error("No image file selected");
+            if (!slug) throw new Error("No slug provided");
+
+            const response = await fetch(`/AdminPanel/Files/${imageFile}?slug=${slug}&type=product`, {
+                method: 'DELETE'
+            });
+
+            submitButton.disabled = false;
+            submitButton.innerText = 'Delete Image';
+
+            if (!response.ok) throw new Error(`Failed to delete image. Status: ${response.status}`);
+
+            const data = await response.json();
+            FetchProducts();
+            FlashMessage(data.message, 'success');
+
+            const deleteProductModal = bootstrap.Modal.getInstance(document.getElementById('editProductModal'));
+            deleteProductModal.hide();
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the image: ' + error.message);
+        }
     });
 }
+
+function HandleEditProductButtonClick(editButton) {
+    const productName = editButton.getAttribute('data-name');
+    const productDescription = editButton.getAttribute('data-description');
+    const productSlug = editButton.getAttribute('data-slug');
+    const productPrice = editButton.getAttribute('data-price');
+    const productCategoryId = editButton.getAttribute('data-category_id');
+    const productImageFile = editButton.getAttribute('data-image_file');
+    const productStockQuantity = editButton.getAttribute('data-stock_quantity');
+    const productSku = editButton.getAttribute('data-sku');
+    const productBrand = editButton.getAttribute('data-brand');
+    const productWeight = editButton.getAttribute('data-weight');
+    const productDimensions = editButton.getAttribute('data-dimensions');
+    const productColor = editButton.getAttribute('data-color');
+    const productSize = editButton.getAttribute('data-size');
+    const productMaterial = editButton.getAttribute('data-material');
+    const productFeatures = editButton.getAttribute('data-features');
+    const productTags = editButton.getAttribute('data-tags');
+    const productDiscountPrice = editButton.getAttribute('data-discount_price');
+    const productAvailabilityStatus = editButton.getAttribute('data-availability_status');
+    const editForm = document.getElementById('editProductForm');
+
+    editForm.setAttribute('data-slug', productSlug);
+    document.getElementById('editProductName').value = productName;
+    document.getElementById('editProductDescription').value = productDescription;
+    document.getElementById('editProductSlug').value = productSlug;
+    document.getElementById('editProductPrice').value = productPrice;
+    document.getElementById('editCategoryId').value = productCategoryId;
+    document.getElementById('editProductImageFileSpan').innerHTML = `Image File: ${productImageFile}`;
+    document.getElementById('editProductStockQuantity').value = productStockQuantity;
+    document.getElementById('editProductSku').value = productSku;
+    document.getElementById('editProductBrand').value = productBrand;
+    document.getElementById('editProductWeight').value = productWeight; 
+    document.getElementById('editProductDimensions').value = productDimensions;
+    document.getElementById('editProductColor').value = productColor;
+    document.getElementById('editProductSize').value = productSize;
+    document.getElementById('editProductMaterial').value = productMaterial;
+    document.getElementById('editProductFeatures').value = productFeatures;
+    document.getElementById('editProductTags').value = productTags;
+    document.getElementById('editProductDiscountPrice').value = productDiscountPrice;
+    document.getElementById('editProductAvailabilityStatus').value = productAvailabilityStatus;
+
+    const deleteButton = document.getElementById('deleteProductImageButton');
+    if (productImageFile !== 'default.jpg') {
+        deleteButton.removeAttribute('disabled');
+    }
+    deleteButton.setAttribute('data-slug', productSlug);
+    deleteButton.setAttribute('data-image_file', productImageFile);
+}
+
+function HandleDeleteProductButtonClick(deleteButton) {
+    const productSlug = deleteButton.getAttribute('data-slug');
+    const deleteForm = document.getElementById('deleteProductForm');
+    deleteForm.setAttribute('data-slug', productSlug);
+}
+
 
 
 
@@ -625,7 +711,7 @@ async function DeleteUser()
                     }
                     
                     const data = await response.json();
-                    flashMessage(data.message,'success')
+                    FlashMessage(data.message,'success')
                     
                     FetchUsers(); 
 
@@ -734,7 +820,7 @@ async function OrderAndAddToCart(){
             }
 
             const data = await response.json();
-            flashMessage(data.message,'success')
+            FlashMessage(data.message,'success')
 
         }
 
@@ -782,7 +868,7 @@ async function DeleteCartItem(){
                 method: 'DELETE'
             });
             const data = await response.json();
-            flashMessage(data.message,'success');
+            FlashMessage(data.message,'success');
 
             const deleteCartForm = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
             deleteCartForm.hide();

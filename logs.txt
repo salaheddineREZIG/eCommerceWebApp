@@ -5,6 +5,6 @@ to add:
 
 
 fixes:
-    1- categories and products images seems funcky and not polished
-    2- the search bar only works on the dashboard 
-    3- the search bar in the home page is not working
+    1- categories and products images seems funcky and not polished --- done 
+    2- the search bar only works on the dashboard - done
+    3- the search bar in the home page is not working done ---

@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 import os
 from functools import wraps
-from Functions import login_required_user, login_required_admin, validate, create_app, allowed_file
+from Functions import login_required_user, login_required_admin, validate, create_app, allowed_file, get_float
 from models import db, Users, Admins, Orders, Products, Categories, Reviews, ShippingDetails, Wishlists, Sales, ProductAttributes, Carts
 from PIL import Image
 import uuid
@@ -71,114 +71,79 @@ class FileManager(Resource):
             return {"message": str(e), "status_code": 500}   
         
 class AdminProducts(Resource):
-    
     @login_required_admin
     def get(self):
         try:
             products = Products.query.all()
-            productList = []
+            products_list = []
             for product in products:
                 category = Categories.query.filter_by(id=product.category_id).first()
-                product.category_name = category.name
-                productList.append(product.to_dict())
-            return make_response(jsonify(productList), 200)
+                product_dict = product.to_dict()
+                product_dict["category_name"] = category.name if category else None
+                products_list.append(product_dict)
+            return make_response(jsonify(products_list), 200)
         except SQLAlchemyError as e:
             return make_response(jsonify({"error": str(e)}), 500)
-        
-        
-    @login_required_admin
+
     def post(self):
         try:
             data = request.form
-            name = data.get('name')
-            description = data.get('description')
-            slug = data.get('slug')
-            price = data.get('price', type=float)
-            category_id = data.get('category_id', type=int)
-            stock_quantity = data.get('stock_quantity', type=int)
-            sku = data.get('sku')
-            brand = data.get('brand')
-            weight = data.get('weight', type=float, default=0.0)
-            dimensions = data.get('dimensions')
-            color = data.get('color')
-            size = data.get('size')
-            material = data.get('material')
-            features = data.get('features')
-            tags = data.get('tags')
-            discount_price = data.get('discount_price', type=float, default=0.0)
-            availability_status = data.get('availability_status')
-
-            if not name or not description or not slug or price is None or category_id is None:
-                return make_response(jsonify({"error": "Missing required fields"}), 400)
-
             image_file = request.files.get('image_file')
             image_filename = 'default.jpg'
 
+            required_fields = ['name', 'description', 'slug', 'price', 'category_id']
+            for field in required_fields:
+                if not data.get(field):
+                    return make_response(jsonify({"error": "All fields are required"}), 400)
+
+            # Handle image file upload
             if image_file:
-                upload_result, status_code = FileManager.upload_file(image_file)
-                if status_code == 200:
+                upload_result = FileManager.upload_file(image_file)
+                if upload_result["status_code"] == 200:
                     image_filename = upload_result["image_file"]
                 else:
-                    return make_response(jsonify({"error": upload_result["message"]}), status_code)
+                    return make_response(jsonify({"error": upload_result["message"]}), upload_result["status_code"])
 
-            product = Products(
-                name=name,
-                description=description,
-                slug=slug,
-                price=price,
-                category_id=category_id,
-                stock_quantity=stock_quantity,
-                sku=sku,
-                brand=brand,
-                weight=weight,
-                dimensions=dimensions,
-                color=color,
-                size=size,
-                material=material,
-                features=features,
-                tags=tags,
-                discount_price=discount_price,
-                availability_status=availability_status,
+            # Convert fields to appropriate types, defaulting if necessary
+            def get_float(value, default=0.0):
+                try:
+                    return float(value) if value else default
+                except ValueError:
+                    return default
+
+            new_product = Products(
+                name=data.get('name'),
+                description=data.get('description'),
+                slug=data.get('slug'),
+                price=get_float(data.get('price')),
+                category_id=data.get('category_id'),
+                stock_quantity=int(data.get('stock_quantity', 0)),
+                sku=data.get('sku'),
+                brand=data.get('brand'),
+                weight=get_float(data.get('weight')),
+                dimensions=data.get('dimensions'),
+                color=data.get('color'),
+                size=data.get('size'),
+                material=data.get('material'),
+                features=data.get('features'),
+                tags=data.get('tags'),
+                discount_price=get_float(data.get('discount_price')),
+                availability_status=data.get('availability_status'),
                 image_file=image_filename
             )
-
-            db.session.add(product)
+            db.session.add(new_product)
             db.session.commit()
-
             return make_response(jsonify({"message": "Product created successfully"}), 201)
-
-        except SQLAlchemyError as e:
+        except Exception as e:
             db.session.rollback()
             return make_response(jsonify({"error": str(e)}), 500)
-        except Exception as e:
-            return make_response(jsonify({"error": str(e)}), 500)
-            
-    @login_required_admin
-    def delete(self, slug):
-        try:
-            product = Products.query.filter_by(slug=slug).first()
-            if product:
-                image_file = product.image_file
-                
-                if image_file and image_file != 'default.jpg':
-                    delete_result= FileManager.delete_file(image_file)
-                    if delete_result["status_code"] != 200:
-                        return make_response(jsonify({"error": delete_result["message"]}), delete_result["status_code"])
-                    
-                db.session.delete(product)
-                db.session.commit()
-                return make_response(jsonify({"message": "Product deleted successfully"}), 200)
-            else:
-                return make_response(jsonify({"message": "Product not found"}), 404)
-        except SQLAlchemyError as e:
-            return make_response(jsonify({"error": str(e)}), 500)
-    
+
     @login_required_admin
     def put(self, slug):
         try:
+            data = request.form
             product = Products.query.filter_by(slug=slug).first()
             if product:
-                data = request.form
                 product.name = data.get('name')
                 product.description = data.get('description')
                 product.slug = data.get('slug')
@@ -196,24 +161,40 @@ class AdminProducts(Resource):
                 product.tags = data.get('tags')
                 product.discount_price = data.get('discount_price')
                 product.availability_status = data.get('availability_status')
+                product.updated_at = datetime.now()
                 new_image_file = request.files.get('image_file')
 
                 if new_image_file:
-                    if not (product.image_file == 'default.jpg') :
-                        FileManager.delete_file(product.image_file)
-
-                    upload_result, status_code = FileManager.upload_file(new_image_file)
-                    if status_code == 200:
+                    if product.image_file and product.image_file != 'default.jpg':
+                        FileManager.delete_file(product.image_file, slug, 'product')
+                    upload_result = FileManager.upload_file(new_image_file)
+                    if upload_result["status_code"] == 200:
                         product.image_file = upload_result["image_file"]
                     else:
-                        return make_response(jsonify({"error": upload_result["message"]}), status_code)
+                        return make_response(jsonify({"error": upload_result["message"]}), upload_result["status_code"])
 
                 db.session.commit()
                 return make_response(jsonify({"message": "Product updated successfully"}), 200)
             else:
                 return make_response(jsonify({"message": "Product not found"}), 404)
-        except SQLAlchemyError as e:
+        except Exception as e:
             return make_response(jsonify({"error": str(e)}), 500)
+
+    @login_required_admin
+    def delete(self, slug):
+        try:
+            product = Products.query.filter_by(slug=slug).first()
+            if product:
+                image_file = product.image_file
+                if image_file and image_file != 'default.jpg':
+                    delete_result = FileManager.delete_file(image_file, slug, 'product')
+                    if delete_result["status_code"] != 200:
+                        return make_response(jsonify({"error": delete_result["message"]}), delete_result["status_code"])
+                db.session.delete(product)
+                db.session.commit()
+                return make_response(jsonify({"message": "Product deleted successfully"}), 200)
+            else:
+                return make_response(jsonify({"message": "Product not found"}), 404)
         except Exception as e:
             return make_response(jsonify({"error": str(e)}), 500)
 
@@ -807,13 +788,11 @@ def UsersCategoriesRoute():
     slug = request.args.get("slug")
     category = Categories.query.filter_by(slug=slug).first()
     
-    if category is None :
+    if not category  :
         flash("Category not found", "error")
         return redirect("/HomePage")
     products = Products.query.filter_by(category_id=category.id).all()
-    if not products:
-        flash("Category not found", "error")
-        return redirect("/HomePage")
+
     productsSerialized = [product.to_dict() for product in products]        
     return render_template("UsersCategory.html", category=category.to_dict() , products=productsSerialized)
     
@@ -843,5 +822,5 @@ def UsersCartRoute():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
 

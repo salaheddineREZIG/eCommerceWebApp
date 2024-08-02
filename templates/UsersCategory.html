@@ -6,80 +6,83 @@
 
         <div class="container-fluid">
             <div class="row">
-                <div class="col-md-12">
-                    <h6>{{category.id}}</h6>
-                    <h6>{{category.slug}}</h6>
-                    <h6>{{category.description}}</h6>
-                    <img src="/static/images/uploads/{{category.image_file }}" alt="Category Image" width="150" height="150">
-                    <h6>{{category.created_at}}</h6>
-                    <h6>{{category.up}}</h6>
+                <div class="col-md-8 text-start">
+                    <h5>Category Details</h5>
+                    <p>Description: {{category.description}}</p>
 
+                </div>
+                <div class="col-md-4">
+                    <img src="/static/images/uploads/{{category.image_file }}" alt="Category Image" width="150" height="150">
                 </div>
             </div>
         </div>
         <div class="container-fluid">
             <div class="row">
-                <div class="col-12">
-                    <div class="table-responsive">
-                        <table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th scope="col">Product Id</th>
-                                    <th scope="col">Product Name</th>
-                                    <th scope="col">Description</th>
-                                    <th scope="col">Price</th>
-                                    <th scope="col">Image</th>
-                                    <th scope="col">Stock Quantity</th>
-                                    <th scope="col">SKU</th>
-                                    <th scope="col">Brand</th>
-                                    <th scope="col">Weight</th>
-                                    <th scope="col">Dimensions</th>
-                                    <th scope="col">Color</th>
-                                    <th scope="col">Size</th>
-                                    <th scope="col">Material</th>
-                                    <th scope="col">Features</th>
-                                    <th scope="col">Tags</th>
-                                    <th scope="col">Discount Price</th>
-                                    <th scope="col">Availability Status</th>
-                                    <th scope="col">Rating</th>
-                                    <th scope="col">Date Added</th>
-                                    <th scope="col">Date Modified</th>
-                                    <th scope="col">Reviews</th>
-                                    <th scope="col"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for product in products %}
+                {% if products %}
+                    <div class="col-12">
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
                                     <tr>
-                                        <td>{{product.id}}</td>
-                                        <td><a href="/HomePage/Products?slug={{product.slug}}">{{product.name}}</a></td>
-                                        <td>{{product.description}}</td>
-                                        <td>{{product.price}}</td>
-                                        <td><img src="/static/images/uploads/{{product.image_file }}" alt="Product Image" width="50" height="50"></td>
-                                        <td>{{product.stock_quantity}}</td>
-                                        <td>{{product.sku}}</td>
-                                        <td>{{product.brand}}</td>
-                                        <td>{{product.weight}}</td>
-                                        <td>{{product.dimensions}}</td>
-                                        <td>{{product.color}}</td>
-                                        <td>{{product.size}}</td>
-                                        <td>{{product.material}}</td>
-                                        <td>{{product.features}}</td>
-                                        <td>{{product.tags}}</td>
-                                        <td>{{product.discount_price}}</td>
-                                        <td>{{product.availability_status}}</td>
-                                        <td>{{product.rating}}</td>
-                                        <td>{{product.reviews}}</td>
-                                        <td>{{product.attributes}}</td>
-                                        <td>{{product.date_added}}</td>
+                                        <th scope="col">Product Name</th>
+                                        <th scope="col">Description</th>
+                                        <th scope="col">Price</th>
+                                        <th scope="col">Image</th>
+                                        <th scope="col">Stock Quantity</th>
+                                        <th scope="col">Brand</th>
+                                        <th scope="col">Weight</th>
+                                        <th scope="col">Dimensions</th>
+                                        <th scope="col">Color</th>
+                                        <th scope="col">Size</th>
+                                        <th scope="col">Material</th>
+                                        <th scope="col">Features</th>
+                                        <th scope="col">Tags</th>
+                                        <th scope="col">Discount Price</th>
+                                        <th scope="col">Availability Status</th>
+                                        <th scope="col">Rating</th>
+                                        <th scope="col"></th>
                                     </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {% for product in products %}
+                                        <tr>
+                                            <td><a href="/HomePage/Products?slug={{product.slug}}">{{product.name}}</a></td>
+                                            <td>{{product.description}}</td>
+                                            <td>{{product.price}}</td>
+                                            <td><img src="/static/images/uploads/{{product.image_file }}" alt="Product Image" width="50" height="50"></td>
+                                            <td>{{product.stock_quantity}}</td>
+                                            <td>{{product.brand}}</td>
+                                            <td>{{product.weight}}</td>
+                                            <td>{{product.dimensions}}</td>
+                                            <td>{{product.color}}</td>
+                                            <td>{{product.size}}</td>
+                                            <td>{{product.material}}</td>
+                                            <td>{{product.features}}</td>
+                                            <td>{{product.tags}}</td>
+                                            <td>{{product.discount_price}}</td>
+                                            <td>{{product.availability_status}}</td>
+                                            <td>{{product.rating}}</td>
+                                            <td>{{product.reviews}}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
+                {% else %}
+                    <div class="col-12">
+                        <h3 class="text-center mt-5">No products found in this category</h3>
+                    </div>
+                {% endif %}
             </div>
         </div>
         
 {% endblock %}
 
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        
+    });
+</script>
+{% endblock %}

@@ -448,7 +448,6 @@ async function AddProduct() {
     form.addEventListener("submit", async function(event) {
         event.preventDefault(); // Prevent default form submission
 
-        console.log("Add Product Form Submitted");
 
         // Disable submit button to prevent multiple submissions
         const submitButton = form.querySelector('button[type="submit"]');
@@ -457,7 +456,6 @@ async function AddProduct() {
 
         // Create FormData object
         const formData = new FormData(form);
-        console.log("Form Data:", formData);
 
         try {
             const response = await fetch('/AdminPanel/Products/OPS', {
@@ -465,7 +463,6 @@ async function AddProduct() {
                 body: formData
             });
 
-            console.log("Response:", response);
 
             if (!response.ok) {
                 // Extract and throw error details from the response
@@ -474,7 +471,6 @@ async function AddProduct() {
             }
 
             const data = await response.json();
-            console.log("Data:", data);
 
             // Show success message
             FlashMessage(data.message, 'success');
@@ -784,6 +780,7 @@ async function fetchInfo(url, listId, type) {
     try {
         const response = await fetch(url);
         const data = await response.json();
+        console.log(data);
         const list = document.getElementById(listId);
         list.innerHTML = ''; // Clear existing list items
 
@@ -841,16 +838,21 @@ async function FetchCart(){
     let response = await fetch('/HomePage/Cart/OPS');
     let data = await response.json();
     data.forEach(item => {
-        let row = document.createElement('tr');
-        row.innerHTML = `<td> <a href="/HomePage/Products?slug=${item.productSlug}">${item.productName}</a></td>
-                        <td>${item.productPrice}</td>
-                        <td>${item.quantity}</td>
-                        <td>${item.total_price}</td>
-                        <td>
-                        <button class="btn btn-danger btn-sm deleteButton" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" 
-                        data-slug="${item.productSlug}">Delete</button>
-                        </td>`;
-        document.getElementById('cartItems').appendChild(row);
+        if (item.total == null){            
+            let row = document.createElement('tr');
+            row.innerHTML = `<td> <a href="/HomePage/Products?slug=${item.productSlug}">${item.productName}</a></td>
+                            <td>${item.productPrice}</td>
+                            <td>${item.quantity}</td>
+                            <td>${item.total_price}</td>
+                            <td>
+                            <button class="btn btn-danger btn-sm deleteButton" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" 
+                            data-slug="${item.productSlug}">Delete</button>
+                            </td>`;
+            document.getElementById('cartItems').appendChild(row);
+        }
+        else {
+            document.getElementById('total').innerHTML = item.total;
+        }
     });
 }
 

@@ -25,6 +25,14 @@
                             </tbody>
                         </table>
                     </div>
+                    <div class="row justify-content-between ">
+                            <div class="col-md-4 text-start">
+                                <span class="h5">Total: <span id="total"></span></span>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button type="button" class="btn btn-success">Proceed To Checkout</button>
+                            </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -55,6 +63,7 @@
 <script>
 
     document.addEventListener('DOMContentLoaded', function() {
+        
         FetchCart();
         DeleteCartItem();
     });

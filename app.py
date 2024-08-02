@@ -1,9 +1,9 @@
-from flask import Flask, render_template, request, redirect, flash, session, jsonify, url_for, make_response
+from flask import Flask, render_template, request, redirect, flash, jsonify, url_for, make_response
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 from flask_restful import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from datetime import datetime,timedelta
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 import os
@@ -12,6 +12,7 @@ from Functions import login_required_user, login_required_admin, validate, creat
 from models import db, Users, Admins, Orders, Products, Categories, Reviews, ShippingDetails, Wishlists, Sales, ProductAttributes, Carts
 from PIL import Image
 import uuid
+import jwt
 
 
 app = create_app()
@@ -20,14 +21,14 @@ api = Api(app)
 
 class FileManager(Resource):
     @login_required_admin
-    def post(self):
+    def post(currentUser,self):
         image_file = request.files.get('file')
         if image_file:
             return self.upload_file(image_file)
         return {"message": "No image file provided"}, 400
     
     @login_required_admin
-    def delete(self, filename):
+    def delete(currentUser,self, filename):
         slug = request.args.get('slug')
         entity_type = request.args.get('type')
         return self.delete_file(filename, slug, entity_type)
@@ -35,6 +36,8 @@ class FileManager(Resource):
     @staticmethod
     def upload_file(image_file):
         try:
+            if not allowed_file(image_file.filename):
+                return {"message": "Invalid file format", "status_code": 400}
             original_filename = secure_filename(image_file.filename)
             file_extension = os.path.splitext(original_filename)[1]
             unique_filename = str(uuid.uuid4()) + file_extension            
@@ -72,7 +75,7 @@ class FileManager(Resource):
         
 class AdminProducts(Resource):
     @login_required_admin
-    def get(self):
+    def get(currentUser,self):
         try:
             products = Products.query.all()
             products_list = []
@@ -85,7 +88,7 @@ class AdminProducts(Resource):
         except SQLAlchemyError as e:
             return make_response(jsonify({"error": str(e)}), 500)
 
-    def post(self):
+    def post(currentUser,self):
         try:
             data = request.form
             image_file = request.files.get('image_file')
@@ -139,7 +142,7 @@ class AdminProducts(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
 
     @login_required_admin
-    def put(self, slug):
+    def put(currentUser,self, slug):
         try:
             data = request.form
             product = Products.query.filter_by(slug=slug).first()
@@ -181,7 +184,7 @@ class AdminProducts(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
 
     @login_required_admin
-    def delete(self, slug):
+    def delete(currentUser,self, slug):
         try:
             product = Products.query.filter_by(slug=slug).first()
             if product:
@@ -202,7 +205,7 @@ class AdminProducts(Resource):
 # Admin Categories Resource
 class AdminCategories(Resource):
     @login_required_admin
-    def get(self):
+    def get(currentUser,self):
         try:
             categories = Categories.query.all()
             categories_list = [category.to_dict() for category in categories]
@@ -211,7 +214,7 @@ class AdminCategories(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
     
     @login_required_admin
-    def post(self):
+    def post(currentUser,self):
         try:
             data = request.form
             image_file = request.files.get('image_file')
@@ -243,7 +246,7 @@ class AdminCategories(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
     
     @login_required_admin
-    def put(self, slug):
+    def put(currentUser,self, slug):
         try:
             data = request.form
             category = Categories.query.filter_by(slug=slug).first()
@@ -271,7 +274,7 @@ class AdminCategories(Resource):
     
     
     @login_required_admin
-    def delete(self, slug):
+    def delete(currentUser,self, slug):
         try:
             category = Categories.query.filter_by(slug=slug).first()
             if category:
@@ -291,7 +294,7 @@ class AdminCategories(Resource):
 # Admin Users Resource
 class AdminUsers(Resource):
     @login_required_admin
-    def get(self):
+    def get(currentUser,self):
         try:
             users = Users.query.all()
             users_list = [user.to_dict() for user in users]
@@ -300,7 +303,7 @@ class AdminUsers(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
     
     @login_required_admin
-    def delete(self, id):
+    def delete(currentUser,self, id):
         try:
             user = Users.query.filter_by(id=id).first()
             if user:
@@ -315,7 +318,7 @@ class AdminUsers(Resource):
 # Admin Orders Resource
 class AdminOrders(Resource):
     @login_required_admin
-    def get(self):
+    def get(currentUser,self):
         try:
             orders = Orders.query.all()
             orders_list = [order.to_dict() for order in orders]
@@ -324,7 +327,7 @@ class AdminOrders(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
     
     @login_required_admin
-    def put(self, id):
+    def put(currentUser,self, id):
         try:
             data = request.form
             order = Orders.query.filter_by(id=id).first()
@@ -342,7 +345,7 @@ class AdminOrders(Resource):
 # Admin Reviews Resource
 class AdminReviews(Resource):
     @login_required_admin
-    def get(self):
+    def get(currentUser,self):
         try:
             reviews = Reviews.query.all()
             reviews_list = [review.to_dict() for review in reviews]
@@ -353,7 +356,7 @@ class AdminReviews(Resource):
 # Admin Dashboard Resource
 class AdminDashboard(Resource):
     @login_required_admin
-    def get(self):
+    def get(currentUser,self):
         try:
             totalUsers = Users.query.count()
             totalOrders = Orders.query.count()
@@ -361,7 +364,8 @@ class AdminDashboard(Resource):
             totalCategories = Categories.query.count()
             totalSales = db.session.query(func.sum(Sales.total_price)).scalar()
             totalRevenue = db.session.query(func.sum(Orders.total_amount)).scalar()
-            adminInfo = Admins.query.filter_by(id=session.get("userId")).first().to_dict()
+            user = currentUser
+            adminInfo = Admins.query.filter_by(id=currentUser["id"]).first().to_dict()
             
             dashboard_data = {
                 "totalUsers": totalUsers,
@@ -377,7 +381,8 @@ class AdminDashboard(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
 
 class UserCategories(Resource):
-    def get(self):
+    @login_required_user
+    def get(currentUser,self):
         try:
             categories = Categories.query.all()
             categories_list = [category.to_dict() for category in categories]
@@ -386,7 +391,8 @@ class UserCategories(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
 
 class UserProducts(Resource):
-    def get(self):
+    @login_required_user
+    def get(currentUser,self):
         try:
             products = Products.query.all()
             products_list = [product.to_dict() for product in products]
@@ -395,8 +401,10 @@ class UserProducts(Resource):
             return make_response(jsonify({"error": str(e)}), 500)
         
 class UsersCart(Resource):
-    def post(self,slug):
-        userId = session.get("userId")
+    @login_required_user
+    def post(currentUser,self,slug):
+        
+        userId = currentUser['id']
         product = Products.query.filter_by(slug=slug).first()
         if product:
             cart = Carts(user_id=userId, product_id=product.id, quantity=1,added_at=datetime.now())
@@ -405,17 +413,18 @@ class UsersCart(Resource):
             return make_response(jsonify({"message": "Product added to cart"}), 200)
         else:
             return make_response(jsonify({"error": "Product not found"}), 404)
+
+    @login_required_user
+    def get(currentUser,self):
+        user_id = currentUser['id']
         
-    def get(self):
-        user_id = session.get("userId")
-        
-        # Aggregate quantities and group by product_id
         cart_aggregates = db.session.query(
             Carts.product_id,
             func.sum(Carts.quantity).label('total_quantity')
         ).filter_by(user_id=user_id).group_by(Carts.product_id).all()
         
         result = []
+        total = 0
         for aggregate in cart_aggregates:
             product = Products.query.filter_by(id=aggregate.product_id).first()
             if product:
@@ -426,12 +435,14 @@ class UsersCart(Resource):
                     'quantity': aggregate.total_quantity,
                     'total_price': product.price * aggregate.total_quantity
                 }
+                total += product.price * aggregate.total_quantity
                 result.append(cart_dict)
-
+        
+        result.append({'total': total})
         return make_response(jsonify(result), 200)
-    
-    def delete(self,slug):
-        user_id = session.get("userId")
+    @login_required_user
+    def delete(currentUser,self,slug):
+        user_id = currentUser['id']
         product = Products.query.filter_by(slug=slug).first()
         if product:
             carts = Carts.query.filter_by(user_id=user_id, product_id=product.id).all()
@@ -460,8 +471,7 @@ api.add_resource(UsersCart, '/HomePage/Cart/OPS', '/HomePage/Cart/OPS/<string:sl
 
 def Index():
 
-    if session.get("loggedIn"):
-
+    if request.cookies.get('token'):
         return redirect("/HomePage")
 
     return render_template("Landing.html")
@@ -473,7 +483,7 @@ def Index():
 
 @login_required_user
 
-def Shop():
+def Shop(currentUser):
 
     return render_template("HomePage.html")
 
@@ -483,7 +493,7 @@ def Shop():
 
 @login_required_user
 
-def UsersSearch():
+def UsersSearch(currentUser):
 
     search = request.args.get("search")
 
@@ -506,7 +516,7 @@ def UsersSearch():
 
 @app.route("/AdminPanel/Dashboard/Search")
 @login_required_admin
-def AdminsSearch():
+def AdminsSearch(currentUser):
 
     search = request.args.get("search")
     searchType = request.args.get("type")
@@ -596,10 +606,9 @@ def SignUp():
             db.session.add(newUser)
             db.session.commit()
 
-            # Set session variables
-            session["userId"] = newUser.id
-            session["admin"] = False
-            session["loggedIn"] = True
+            token = jwt.encode({"id": user.id, "isAdmin": False, "userName": user.userName,"exp": datetime.utcnow() + timedelta(days=1)}, app.config["SECRET_KEY"],algorithm='HS256')
+            response = make_response(redirect("/HomePage"))
+            response.set_cookie("token", token, httponly=True, samesite="Strict", secure=True)
 
             flash("Signed up successfully", "success")
             return redirect("/HomePage")
@@ -620,132 +629,81 @@ def SignUp():
 # Route for user login
 
 @app.route("/LogIn", methods=["GET", "POST"])
-
 def LogIn():
-
     if request.method == "POST":
-
         # Retrieve form data
-
         username = request.form.get("username")
-
         password = request.form.get("password")
 
-
         # Fetch user data from the database
-
         user = Users.query.filter_by(userName=username).first()
 
         if not user:
-
-            flash("No username found", "error")
-
+            flash("No user found", "error")
             return redirect("/LogIn")
-
 
         # Check if password matches
-
         if check_password_hash(user.password, password):
-
-            session["userId"] = user.id
-            
-            session["admin"] = False
-
-            session["loggedIn"] = True
-
-
-            # Flash success message and redirect to homepage
-
+            token = jwt.encode(
+                {"id": user.id, "isAdmin": False, "userName": user.userName, "exp": datetime.utcnow() + timedelta(days=1)},
+                app.config["SECRET_KEY"],
+                algorithm='HS256'
+            )
+            response = make_response(redirect("/HomePage"))
+            response.set_cookie("token", token, httponly=True, samesite="Strict", secure=True)
             flash("Logged in successfully", "success")
-
-            return redirect("/HomePage")
-
+            return response
         else:
-
             flash("Invalid username and/or password", "error")
-
             return redirect("/LogIn")
-
     else:
-
         # Render the login page
-
         return render_template("Login.html")
 
-
-# Route for user logout
-
-@app.route("/LogOut", methods=["GET","POST"])
-
-
-
+# User logout route
+@app.route("/LogOut")
 def LogOut():
-
-    # Clear the session
-    session.clear()
-
-    # Flash success message and redirect to the landing page
-
+    response = make_response(redirect("/"))
+    response.set_cookie('token', '', expires=0)
     flash("Logged out successfully", "success")
+    return response
 
-    return redirect("/")
-
-
+# Admin login route
 @app.route("/AdminPanel/LogIn", methods=["GET", "POST"])
-
 def AdminLogIn():
-
     if request.method == "POST":
-
         # Retrieve form data
-
         username = request.form.get("username")
-
         password = request.form.get("password")
-
 
         # Fetch user data from the database
         admin = Admins.query.filter_by(userName=username).first()
+
         if not admin:
-
             flash("No username found", "error")
-
             return redirect("/AdminPanel/LogIn")
-
 
         # Check if password matches
-
         if check_password_hash(admin.password, password):
-
-            session["userId"] = admin.id
-            
-            session["admin"] = True
-
-            session["loggedIn"] = True
-
-
-            # Flash success message and redirect to homepage
-
+            token = jwt.encode(
+                {"id": admin.id, "isAdmin": True, "userName": admin.userName, "exp": datetime.utcnow() + timedelta(days=1)},
+                app.config["SECRET_KEY"],
+                algorithm='HS256'
+            )
+            response = make_response(redirect("/AdminPanel/Dashboard"))
+            response.set_cookie("token", token, httponly=True, secure=True, samesite="Strict")
             flash("Logged in successfully", "success")
-
-            return redirect("/AdminPanel/Dashboard")
-
+            return response
         else:
-
             flash("Invalid username and/or password", "error")
-
             return redirect("/AdminPanel/LogIn")
-
     else:
-
         # Render the login page
-
         return render_template("AdminLogIn.html")
-    
-    
+
 @app.route("/AdminPanel/Dashboard", methods=["GET"])
 @login_required_admin
-def Dashboard():
+def Dashboard(currentUser):
 
     return render_template("AdminDashboard.html")
     
@@ -753,21 +711,21 @@ def Dashboard():
 @app.route("/AdminPanel/Products", methods=["GET", "POST"])
 @login_required_admin
 
-def ProductsRoute():
+def ProductsRoute(currentUser):
 
     return render_template("AdminProducts.html")
 
 @app.route("/AdminPanel/Categories", methods=["GET", "POST"])
 @login_required_admin
 
-def AdminCategoriesRoute():
+def AdminCategoriesRoute(currentUser):
 
     return render_template("AdminCategories.html")
 
 @app.route("/AdminPanel/Users", methods=["GET", "POST"])
 
 @login_required_admin
-def UsersRoute():
+def UsersRoute(currentUser):
     
     return render_template("AdminUsers.html")
 
@@ -775,7 +733,7 @@ def UsersRoute():
 @app.route("/AdminPanel/Orders", methods=["GET", "POST"])
 @login_required_admin
 
-def OrdersRoute():
+def OrdersRoute(currentUser):
     
     return render_template("AdminOrders.html")
 
@@ -783,7 +741,7 @@ def OrdersRoute():
 
 @app.route("/HomePage/Categories", methods=["GET", "POST"])
 @login_required_user
-def UsersCategoriesRoute():
+def UsersCategoriesRoute(currentUser):
     
     slug = request.args.get("slug")
     category = Categories.query.filter_by(slug=slug).first()
@@ -799,7 +757,7 @@ def UsersCategoriesRoute():
 
 @app.route("/HomePage/Products", methods=["GET", "POST"])
 @login_required_user
-def UsersProductsRoute():
+def UsersProductsRoute(currentUser):
     
     slug = request.args.get("slug")
     product = Products.query.filter_by(slug=slug).first()
@@ -807,13 +765,14 @@ def UsersProductsRoute():
         
         flash("Product not found", "error")
         return redirect("/HomePage")
-    
-    return render_template("UsersProducts.html", product=product.to_dict())
+    product = product.to_dict()
+    product["category_slug"] = Categories.query.filter_by(id=product["category_id"]).first().slug
+    return render_template("UsersProducts.html", product=product)
 
 
 @app.route("/HomePage/Cart", methods=["GET", "POST"])
 @login_required_user
-def UsersCartRoute():
+def UsersCartRoute(currentUser):
     
     return render_template("UsersCart.html")
         

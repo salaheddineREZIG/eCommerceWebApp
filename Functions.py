@@ -1,14 +1,12 @@
 from email_validator import validate_email, EmailNotValidError
-from flask import Flask,flash, redirect, url_for, session,request,make_response
+from flask import Flask,flash, redirect, url_for,request,make_response
 from functools import wraps
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 import os
 from models import db, Users, Admins
 from flask_migrate import Migrate
-from flask_session import Session
 import jwt
-
 
 
 secretKey = None
@@ -41,7 +39,6 @@ def create_app():
     
     db.init_app(app)
     migrate = Migrate(app, db)
-    Session(app)
     
     with app.app_context():
         db.create_all()

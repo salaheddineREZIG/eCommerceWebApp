@@ -852,6 +852,10 @@ async function FetchCart(){
         }
         else {
             document.getElementById('total').innerHTML = item.total;
+            if (item.total != 0){
+                document.getElementById('checkoutButton').disabled = false;
+                
+            }
         }
     });
 }
